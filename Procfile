@@ -1,1 +1,1 @@
-web: node dist/server/index.mjs
+web: bun dist/server/index.mjs
