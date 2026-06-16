@@ -13,11 +13,11 @@ export default defineConfig({
     server: { entry: "server" },
   },
   nitro: {
-    preset: "vercel",
+    preset: "node-server",
     output: {
-      dir: ".vercel/output",
-      serverDir: ".vercel/output/functions/index.func",
-      publicDir: ".vercel/output/static",
+      dir: "dist",
+      serverDir: "dist/server",
+      publicDir: "dist/public",
     },
   },
 });
