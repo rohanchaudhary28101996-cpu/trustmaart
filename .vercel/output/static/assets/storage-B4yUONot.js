@@ -1,0 +1,1 @@
+import{d as u}from"./index-C6iwxFGd.js";const c=new Map,a=3600;async function d(n,e){if(!e)return"";if(/^https?:\/\//.test(e))return e;const r=`${n}/${e}`,s=Date.now(),t=c.get(r);if(t&&t.exp>s+6e4)return t.url;const{data:i}=await u.storage.from(n).createSignedUrl(e,a),o=i?.signedUrl??"";return c.set(r,{url:o,exp:s+a*1e3}),o}export{d as s};
