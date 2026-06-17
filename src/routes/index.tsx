@@ -1,7 +1,7 @@
+import React, { useState, useEffect } from "react";
 import { createFileRoute, Link, useNavigate } from "@tanstack/react-router";
-import { useState } from "react";
-import { useSuspenseQuery, queryOptions } from "@tanstack/react-query";
-import { Sparkles, Search, Shield, MessageCircle, BadgeCheck, ArrowRight, Zap } from "lucide-react";
+import { useSuspenseQuery, queryOptions, useQuery } from "@tanstack/react-query";
+import { Sparkles, Search, Shield, MessageCircle, BadgeCheck, ArrowRight, Zap, MapPin } from "lucide-react";
 import * as Icons from "lucide-react";
 import { AppShell } from "@/components/layout/AppShell";
 import { ListingCard } from "@/components/ListingCard";
@@ -9,10 +9,11 @@ import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { getHomeData } from "@/lib/listings.functions";
 import { useI18n } from "@/lib/i18n";
+import { getStoredCity } from "@/lib/city";
 
-const homeQuery = queryOptions({
-  queryKey: ["home"],
-  queryFn: () => getHomeData(),
+const homeQuery = (city = "") => queryOptions({
+  queryKey: ["home", city],
+  queryFn: () => getHomeData({ data: { city } }),
   staleTime: 30_000,
 });
 
@@ -25,15 +26,19 @@ export const Route = createFileRoute("/")({
       { property: "og:description", content: "AI-powered second-hand marketplace for India. Find deals on mobiles, electronics, furniture and more." },
     ],
   }),
-  loader: ({ context }) => context.queryClient.ensureQueryData(homeQuery),
+  loader: ({ context }) => context.queryClient.ensureQueryData(homeQuery()),
   component: HomePage,
 });
 
 function HomePage() {
-  const { data } = useSuspenseQuery(homeQuery);
+  const [city, setCity] = useState("");
+  useEffect(() => { setCity(getStoredCity()); }, []);
+  const { data } = useSuspenseQuery(homeQuery());
+  const { data: localData } = useQuery({ ...homeQuery(city), enabled: !!city });
   const { t } = useI18n();
   const navigate = useNavigate();
   const [q, setQ] = useState("");
+  const nearby = city ? (localData?.nearby ?? []) : [];
 
   return (
     <AppShell>
@@ -105,6 +110,19 @@ function HomePage() {
               .map((c) => (
                 <CategoryTile key={c.id} slug={c.slug} name={c.name_en} icon={c.icon} />
               ))}
+          </div>
+        </section>
+      )}
+
+      {/* NEARBY */}
+      {nearby.length > 0 && (
+        <section className="mx-auto max-w-7xl px-4 py-6">
+          <SectionHeader
+            title={<span className="flex items-center gap-2"><MapPin className="h-5 w-5 text-primary" />{city} listings</span>}
+            link={{ label: "See all", to: `/browse?city=${encodeURIComponent(city)}` }}
+          />
+          <div className="mt-5 grid grid-cols-2 gap-4 sm:grid-cols-3 lg:grid-cols-4">
+            {nearby.map((l) => <ListingCard key={l.id} l={l} />)}
           </div>
         </section>
       )}
@@ -219,7 +237,7 @@ function HomePage() {
   );
 }
 
-function SectionHeader({ title, link }: { title: string; link?: { label: string; to: string } }) {
+function SectionHeader({ title, link }: { title: React.ReactNode; link?: { label: string; to: string } }) {
   return (
     <div className="flex items-end justify-between">
       <h2 className="text-xl font-extrabold tracking-tight md:text-2xl">{title}</h2>

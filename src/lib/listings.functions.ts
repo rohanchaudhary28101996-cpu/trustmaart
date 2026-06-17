@@ -23,10 +23,10 @@ export const listListings = createServerFn({ method: "POST" })
     let q = supabaseAdmin
       .from("listings")
       .select(
-        "id,title,price,is_negotiable,city,cover_image,created_at,type,is_featured,condition,brand,category_id",
+        "id,title,price,is_negotiable,city,cover_image,created_at,type,is_featured,condition,brand,category_id,status",
         { count: "exact" },
       )
-      .eq("status", "active")
+      .in("status", ["active", "sold"])
       .eq("moderation_status", "live");
     if (data.type) q = q.eq("type", data.type);
     if (data.condition) q = q.eq("condition", data.condition);
@@ -67,7 +67,7 @@ export const getListing = createServerFn({ method: "POST" })
       supabaseAdmin.from("listing_images").select("id,url,position").eq("listing_id", data.id).order("position"),
       supabaseAdmin
         .from("profiles")
-        .select("id,full_name,avatar_url,city,is_verified,created_at")
+        .select("id,full_name,avatar_url,city,is_verified,created_at,phone")
         .eq("id", listing.owner_id)
         .maybeSingle(),
       supabaseAdmin.from("service_details").select("*").eq("listing_id", data.id).maybeSingle(),
@@ -104,22 +104,33 @@ export const getCategories = createServerFn({ method: "GET" }).handler(async () 
   return data ?? [];
 });
 
-export const getHomeData = createServerFn({ method: "GET" }).handler(async () => {
-  const { supabaseAdmin } = await import("@/integrations/supabase/client.server");
-  const select = "id,title,price,is_negotiable,city,cover_image,created_at,type,is_featured,condition";
-  const [{ data: featured }, { data: recent }, { data: services }, { data: cats }] = await Promise.all([
-    supabaseAdmin.from("listings").select(select).eq("status", "active").eq("moderation_status", "live").eq("is_featured", true).limit(8),
-    supabaseAdmin.from("listings").select(select).eq("status", "active").eq("moderation_status", "live").eq("type", "product").order("created_at", { ascending: false }).limit(12),
-    supabaseAdmin.from("listings").select(select).eq("status", "active").eq("moderation_status", "live").eq("type", "service").order("created_at", { ascending: false }).limit(8),
-    supabaseAdmin.from("categories").select("id,slug,name_en,name_hi,icon,type").order("position").limit(20),
-  ]);
-  return {
-    featured: featured ?? [],
-    recent: recent ?? [],
-    services: services ?? [],
-    categories: cats ?? [],
-  };
-});
+export const getHomeData = createServerFn({ method: "GET" })
+  .inputValidator((data: unknown) => {
+    const d = (data ?? {}) as Record<string, unknown>;
+    return { city: typeof d.city === "string" ? d.city : "" };
+  })
+  .handler(async ({ data }) => {
+    const { supabaseAdmin } = await import("@/integrations/supabase/client.server");
+    const select = "id,title,price,is_negotiable,city,cover_image,created_at,type,is_featured,condition,status";
+    const base = () => supabaseAdmin.from("listings").select(select).eq("status", "active").eq("moderation_status", "live");
+    const [{ data: featured }, { data: recent }, { data: nearby }, { data: services }, { data: cats }] = await Promise.all([
+      base().eq("is_featured", true).limit(8),
+      base().eq("type", "product").order("created_at", { ascending: false }).limit(12),
+      data.city
+        ? base().eq("type", "product").ilike("city", `%${data.city}%`).order("created_at", { ascending: false }).limit(8)
+        : Promise.resolve({ data: [] }),
+      base().eq("type", "service").order("created_at", { ascending: false }).limit(8),
+      supabaseAdmin.from("categories").select("id,slug,name_en,name_hi,icon,type").order("position").limit(20),
+    ]);
+    return {
+      featured: featured ?? [],
+      recent: recent ?? [],
+      nearby: nearby ?? [],
+      services: services ?? [],
+      categories: cats ?? [],
+      city: data.city,
+    };
+  });
 
 const CreateListingSchema = z.object({
   type: z.enum(["product", "service"]),

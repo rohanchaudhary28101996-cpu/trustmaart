@@ -11,6 +11,9 @@ import {
   Moon,
   Sun,
   Languages,
+  MapPin,
+  ChevronDown,
+  X,
 } from "lucide-react";
 import { useState } from "react";
 import { Button } from "@/components/ui/button";
@@ -27,22 +30,66 @@ import { Avatar, AvatarFallback, AvatarImage } from "@/components/ui/avatar";
 import { useAuth } from "@/lib/auth";
 import { useTheme } from "@/lib/theme";
 import { useI18n } from "@/lib/i18n";
+import { useCity, POPULAR_CITIES } from "@/lib/city";
 
 export function Header() {
   const { user, isSuperAdmin, signOut } = useAuth();
   const { theme, toggle } = useTheme();
   const { lang, setLang, t } = useI18n();
+  const { city, setCity } = useCity();
   const navigate = useNavigate();
   const router = useRouter();
   const [q, setQ] = useState("");
+  const [cityOpen, setCityOpen] = useState(false);
+  const [cityInput, setCityInput] = useState("");
 
   const onSearch = (e: React.FormEvent) => {
     e.preventDefault();
     if (q.trim()) navigate({ to: "/search", search: { q: q.trim() } });
   };
 
+  const filteredCities = POPULAR_CITIES.filter((c) =>
+    !cityInput || c.toLowerCase().includes(cityInput.toLowerCase())
+  );
+
   return (
     <header className="sticky top-0 z-40 w-full border-b border-border/60 bg-background/85 backdrop-blur supports-[backdrop-filter]:bg-background/70">
+      {cityOpen && (
+        <div className="fixed inset-0 z-50 flex items-start justify-center pt-20 px-4" onClick={() => setCityOpen(false)}>
+          <div className="w-full max-w-md rounded-2xl border bg-card shadow-elevated p-4" onClick={(e) => e.stopPropagation()}>
+            <div className="flex items-center justify-between mb-3">
+              <h3 className="font-semibold">Select your city</h3>
+              <Button variant="ghost" size="icon" onClick={() => setCityOpen(false)}><X className="h-4 w-4" /></Button>
+            </div>
+            <Input
+              placeholder="Search city…"
+              value={cityInput}
+              onChange={(e) => setCityInput(e.target.value)}
+              className="mb-3"
+              autoFocus
+            />
+            {city && (
+              <button
+                className="mb-2 w-full text-left text-sm text-muted-foreground hover:text-foreground"
+                onClick={() => { setCity(""); setCityOpen(false); setCityInput(""); }}
+              >
+                ✕ Clear — show all India
+              </button>
+            )}
+            <div className="grid grid-cols-3 gap-2 max-h-60 overflow-y-auto">
+              {filteredCities.map((c) => (
+                <button
+                  key={c}
+                  onClick={() => { setCity(c); setCityOpen(false); setCityInput(""); }}
+                  className={`rounded-xl border px-2 py-2 text-sm text-left transition-colors hover:bg-primary/10 ${city === c ? "border-primary bg-primary/10 font-medium text-primary" : ""}`}
+                >
+                  {c}
+                </button>
+              ))}
+            </div>
+          </div>
+        </div>
+      )}
       <div className="mx-auto flex h-16 max-w-7xl items-center gap-3 px-4">
         <Link to="/" className="flex shrink-0 items-center gap-2">
           <div className="grid h-9 w-9 place-items-center rounded-xl gradient-primary text-primary-foreground font-bold shadow-card">
@@ -66,6 +113,16 @@ export function Header() {
         </form>
 
         <nav className="ml-auto flex items-center gap-1">
+          <Button
+            variant="ghost"
+            size="sm"
+            className="hidden md:inline-flex items-center gap-1 text-muted-foreground hover:text-foreground"
+            onClick={() => setCityOpen(true)}
+          >
+            <MapPin className="h-3.5 w-3.5 text-primary" />
+            <span className="max-w-[80px] truncate">{city || "All India"}</span>
+            <ChevronDown className="h-3 w-3" />
+          </Button>
           <Button asChild variant="ghost" size="sm" className="hidden md:inline-flex">
             <Link to="/browse">{t("nav.browse")}</Link>
           </Button>

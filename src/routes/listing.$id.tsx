@@ -11,6 +11,8 @@ import {
   ArrowLeft,
   ShieldCheck,
   Loader2,
+  Phone,
+  Eye,
 } from "lucide-react";
 import { AppShell } from "@/components/layout/AppShell";
 import { ListingImageGallery } from "@/components/ListingImageGallery";
@@ -93,6 +95,7 @@ function ListingDetailPage() {
 
   const { listing, images, seller, similar } = data;
   const isOwner = user?.id === listing.owner_id;
+  const [showPhone, setShowPhone] = useState(false);
 
   const handleSave = async () => {
     if (!user) {
@@ -235,14 +238,14 @@ function ListingDetailPage() {
                 Seller
               </h2>
               <div className="mt-3 flex items-center gap-3">
-                <div className="h-12 w-12 overflow-hidden rounded-full bg-muted">
+                <Link to="/seller/$id" params={{ id: listing.owner_id }} className="h-12 w-12 overflow-hidden rounded-full bg-muted ring-2 ring-transparent hover:ring-primary transition-all">
                   <AppImage bucket="avatars" path={seller?.avatar_url} alt={seller?.full_name ?? "Seller"} className="h-full w-full" />
-                </div>
+                </Link>
                 <div>
-                  <div className="flex items-center gap-1 font-semibold">
+                  <Link to="/seller/$id" params={{ id: listing.owner_id }} className="flex items-center gap-1 font-semibold hover:text-primary">
                     {seller?.full_name ?? "Anonymous"}
                     {seller?.is_verified && <BadgeCheck className="h-4 w-4 text-primary" />}
-                  </div>
+                  </Link>
                   <div className="text-xs text-muted-foreground">
                     {seller?.city ? `From ${seller.city}` : "TrustMaart seller"}
                   </div>
@@ -251,9 +254,23 @@ function ListingDetailPage() {
 
               <div className="mt-4 space-y-2">
                 {!isOwner && (
-                  <Button className="w-full gap-2" size="lg" onClick={handleChat} disabled={chatLoading}>
-                    <MessageCircle className="h-4 w-4" /> {chatLoading ? "Opening chat…" : "Chat with seller"}
-                  </Button>
+                  <>
+                    <Button className="w-full gap-2" size="lg" onClick={handleChat} disabled={chatLoading}>
+                      <MessageCircle className="h-4 w-4" /> {chatLoading ? "Opening chat…" : "Chat with seller"}
+                    </Button>
+                    {seller?.phone ? (
+                      showPhone ? (
+                        <a href={`tel:${seller.phone}`} className="flex w-full items-center justify-center gap-2 rounded-lg border border-green-500 bg-green-50 py-2.5 text-sm font-semibold text-green-700 hover:bg-green-100 dark:bg-green-950 dark:text-green-300">
+                          <Phone className="h-4 w-4" /> {seller.phone}
+                        </a>
+                      ) : (
+                        <Button variant="outline" className="w-full gap-2 border-green-500 text-green-700 hover:bg-green-50"
+                          onClick={() => { if (!user) { toast.info("Sign in to see phone number"); return; } setShowPhone(true); }}>
+                          <Eye className="h-4 w-4" /> Show phone number
+                        </Button>
+                      )
+                    ) : null}
+                  </>
                 )}
                 <div className="grid grid-cols-2 gap-2">
                   <Button variant="outline" className="gap-2" onClick={handleSave}>

@@ -1,7 +1,8 @@
 import { createFileRoute, useNavigate, useSearch } from "@tanstack/react-router";
 import { useSuspenseQuery, queryOptions, useQuery } from "@tanstack/react-query";
 import { z } from "zod";
-import { useState } from "react";
+import { useState, useEffect } from "react";
+import { getStoredCity } from "@/lib/city";
 import { AppShell } from "@/components/layout/AppShell";
 import { ListingCard } from "@/components/ListingCard";
 import { Input } from "@/components/ui/input";
@@ -42,6 +43,13 @@ function BrowsePage() {
   const s = useSearch({ from: "/browse" });
   const navigate = useNavigate();
   const { data: cats } = useSuspenseQuery(catsQuery);
+
+  useEffect(() => {
+    if (!s.city) {
+      const stored = getStoredCity();
+      if (stored) navigate({ to: "/browse", search: { ...s, city: stored }, replace: true });
+    }
+  }, []);
 
   const filters = { type: "product" as const, ...s };
   const { data, isLoading } = useQuery({
