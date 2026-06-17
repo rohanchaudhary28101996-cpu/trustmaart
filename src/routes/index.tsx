@@ -83,7 +83,7 @@ function HomePage() {
 
       {/* CATEGORIES */}
       <section className="mx-auto max-w-7xl px-4 py-10">
-        <SectionHeader title={t("section.categories")} link={{ label: t("label.view_all"), to: "/browse" }} />
+        <SectionHeader title={t("section.categories")} link={{ label: t("label.view_all"), to: "/categories" }} />
         <div className="mt-5 grid grid-cols-3 gap-3 sm:grid-cols-4 md:grid-cols-6 lg:grid-cols-10">
           {data.categories
             .filter((c) => c.type === "product")
