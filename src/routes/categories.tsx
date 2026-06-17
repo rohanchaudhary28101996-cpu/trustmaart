@@ -54,8 +54,13 @@ function CategoriesPage() {
   );
 }
 
+function toPascalCase(str: string) {
+  return str.replace(/(^\w|-\w)/g, (c) => c.replace("-", "").toUpperCase());
+}
+
 function CategoryTile({ slug, name, icon }: { slug: string; name: string; icon: string | null }) {
-  const Icon = (icon && (Icons as unknown as Record<string, typeof Sparkles>)[icon]) || Sparkles;
+  const key = icon ? toPascalCase(icon) : null;
+  const Icon = (key && (Icons as unknown as Record<string, typeof Sparkles>)[key]) || Sparkles;
   return (
     <Link
       to="/browse"

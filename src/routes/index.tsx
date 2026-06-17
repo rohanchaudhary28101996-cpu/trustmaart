@@ -232,8 +232,13 @@ function CategoryTile({ slug, name, icon }: { slug: string; name: string; icon: 
   );
 }
 
+function toPascalCase(str: string) {
+  return str.replace(/(^\w|-\w)/g, (c) => c.replace("-", "").toUpperCase());
+}
+
 function IconRender({ name, className }: { name: string | null; className?: string }) {
-  const Icon = (name && (Icons as unknown as Record<string, typeof Sparkles>)[name]) || Sparkles;
+  const key = name ? toPascalCase(name) : null;
+  const Icon = (key && (Icons as unknown as Record<string, typeof Sparkles>)[key]) || Sparkles;
   return <Icon className={className} />;
 }
 
