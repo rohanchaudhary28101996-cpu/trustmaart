@@ -1,4 +1,4 @@
-import { createFileRoute, Link, useRouter } from "@tanstack/react-router";
+import { createFileRoute, Link, useRouter, useNavigate } from "@tanstack/react-router";
 import { useSuspenseQuery, queryOptions } from "@tanstack/react-query";
 import { useState } from "react";
 import {
@@ -10,6 +10,7 @@ import {
   BadgeCheck,
   ArrowLeft,
   ShieldCheck,
+  Loader2,
 } from "lucide-react";
 import { AppShell } from "@/components/layout/AppShell";
 import { ListingImageGallery } from "@/components/ListingImageGallery";
@@ -20,6 +21,7 @@ import { Badge } from "@/components/ui/badge";
 import { Separator } from "@/components/ui/separator";
 import { formatINR, timeAgo, CONDITION_LABEL } from "@/lib/format";
 import { getListing, toggleWishlist } from "@/lib/listings.functions";
+import { startOrGetConversation } from "@/lib/chat.functions";
 import { useAuth } from "@/lib/auth";
 import { toast } from "sonner";
 import { cn } from "@/lib/utils";
@@ -75,7 +77,9 @@ function ListingDetailPage() {
   const { id } = Route.useParams();
   const { data } = useSuspenseQuery(listingQuery(id));
   const { user } = useAuth();
+  const navigate = useNavigate();
   const [saved, setSaved] = useState(false);
+  const [chatLoading, setChatLoading] = useState(false);
 
   if (!data || !data.listing) {
     return (
@@ -98,6 +102,22 @@ function ListingDetailPage() {
     const res = await toggleWishlist({ data: { listing_id: listing.id } });
     setSaved(res.saved);
     toast.success(res.saved ? "Saved to wishlist" : "Removed from wishlist");
+  };
+
+  const handleChat = async () => {
+    if (!user) {
+      navigate({ to: "/auth" });
+      return;
+    }
+    setChatLoading(true);
+    try {
+      const conv = await startOrGetConversation({ data: { listing_id: listing.id } });
+      navigate({ to: "/chat/$id", params: { id: conv.id } });
+    } catch (e) {
+      toast.error((e as Error).message);
+    } finally {
+      setChatLoading(false);
+    }
   };
 
   const handleShare = async () => {
@@ -231,8 +251,8 @@ function ListingDetailPage() {
 
               <div className="mt-4 space-y-2">
                 {!isOwner && (
-                  <Button className="w-full gap-2" size="lg">
-                    <MessageCircle className="h-4 w-4" /> Chat with seller
+                  <Button className="w-full gap-2" size="lg" onClick={handleChat} disabled={chatLoading}>
+                    {chatLoading ? <Loader2 className="h-4 w-4 animate-spin" /> : <MessageCircle className="h-4 w-4" />} Chat with seller
                   </Button>
                 )}
                 <div className="grid grid-cols-2 gap-2">

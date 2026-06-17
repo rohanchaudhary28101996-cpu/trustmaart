@@ -45,11 +45,18 @@ export const generateListing = createServerFn({ method: "POST" })
     if (!data.notes.trim() && (!data.imageDataUrls || data.imageDataUrls.length === 0)) {
       throw new Error("Add a few words or upload a photo first");
     }
+    const { supabaseAdmin } = await import("@/integrations/supabase/client.server");
+    const { data: cats } = await supabaseAdmin
+      .from("categories")
+      .select("slug")
+      .eq("type", "product")
+      .order("position");
+    const categorySlugs = (cats ?? []).map((c) => c.slug).join(",");
     const sys = `You help Indian sellers on TrustMaart (a second-hand product marketplace) write professional product listings. Always reply in valid JSON only, no prose, no markdown. Currency is INR (₹). Keep tone trustworthy and clear. Use any uploaded photos to identify the product, brand, model, and condition.`;
     const textPart = data.notes.trim()
       ? `Seller notes:\n"""${data.notes.trim()}"""\n\n`
       : `(No notes — infer everything from the photos.)\n\n`;
-    const userText = `${textPart}Return JSON with this exact shape:\n{\n  "title": string (max 80 chars, catchy + specific, include brand/model if visible),\n  "description": string (120-400 chars, friendly, mentions key features and condition),\n  "category_slug": one of [mobiles,electronics,vehicles,furniture,fashion,appliances,books,sports,real-estate,pets],\n  "condition": one of ["new","like_new","good","fair","used"],\n  "tags": array of 3-6 short keywords,\n  "suggested_price_inr": number,\n  "price_note": short string explaining the price\n}`;
+    const userText = `${textPart}Return JSON with this exact shape:\n{\n  "title": string (max 80 chars, catchy + specific, include brand/model if visible),\n  "description": string (120-400 chars, friendly, mentions key features and condition),\n  "category_slug": one of [${categorySlugs}],\n  "condition": one of ["new","like_new","good","fair","used"],\n  "tags": array of 3-6 short keywords,\n  "suggested_price_inr": number,\n  "price_note": short string explaining the price\n}`;
     const content: Array<Record<string, unknown>> = [{ type: "text", text: userText }];
     for (const url of data.imageDataUrls ?? []) {
       content.push({ type: "image_url", image_url: { url } });

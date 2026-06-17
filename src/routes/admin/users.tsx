@@ -74,12 +74,22 @@ function UsersPage() {
               <Card key={u.id} className="flex flex-wrap items-center gap-3 p-3">
                 <div className="h-10 w-10 shrink-0 overflow-hidden rounded-full bg-muted">
                   {u.avatar_url ? (
-                    <img src={u.avatar_url} alt={u.full_name ?? "User"} className="h-full w-full object-cover" />
-                  ) : (
-                    <div className="grid h-full w-full place-items-center text-xs font-bold text-primary">
-                      {(u.full_name ?? "U").slice(0, 1).toUpperCase()}
-                    </div>
-                  )}
+                    <img
+                      src={u.avatar_url}
+                      alt={u.full_name ?? "User"}
+                      className="h-full w-full object-cover"
+                      onError={(e) => {
+                        (e.currentTarget as HTMLImageElement).style.display = "none";
+                        (e.currentTarget.nextElementSibling as HTMLElement | null)?.style.setProperty("display", "grid");
+                      }}
+                    />
+                  ) : null}
+                  <div
+                    className="h-full w-full place-items-center text-xs font-bold text-primary"
+                    style={{ display: u.avatar_url ? "none" : "grid" }}
+                  >
+                    {(u.full_name ?? "U").slice(0, 1).toUpperCase()}
+                  </div>
                 </div>
                 <div className="min-w-0 flex-1">
                   <div className="flex flex-wrap items-center gap-2">
@@ -125,12 +135,22 @@ function UsersPage() {
               <div className="flex items-center gap-3">
                 <div className="h-14 w-14 overflow-hidden rounded-full bg-muted">
                   {viewUser.avatar_url ? (
-                    <img src={viewUser.avatar_url} alt={viewUser.full_name ?? "User"} className="h-full w-full object-cover" />
-                  ) : (
-                    <div className="grid h-full w-full place-items-center text-sm font-bold text-primary">
-                      {(viewUser.full_name ?? "U").slice(0, 1).toUpperCase()}
-                    </div>
-                  )}
+                    <img
+                      src={viewUser.avatar_url}
+                      alt={viewUser.full_name ?? "User"}
+                      className="h-full w-full object-cover"
+                      onError={(e) => {
+                        (e.currentTarget as HTMLImageElement).style.display = "none";
+                        (e.currentTarget.nextElementSibling as HTMLElement | null)?.style.setProperty("display", "grid");
+                      }}
+                    />
+                  ) : null}
+                  <div
+                    className="h-full w-full place-items-center text-sm font-bold text-primary"
+                    style={{ display: viewUser.avatar_url ? "none" : "grid" }}
+                  >
+                    {(viewUser.full_name ?? "U").slice(0, 1).toUpperCase()}
+                  </div>
                 </div>
                 <div>
                   <div className="font-semibold">{viewUser.full_name ?? "User"}</div>

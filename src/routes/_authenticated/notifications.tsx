@@ -19,6 +19,22 @@ type Notif = {
   created_at: string;
 };
 
+const TYPE_TITLES: Record<string, string> = {
+  listing_approve: "Your listing was approved and is now live",
+  listing_reject: "Your listing was rejected",
+  listing_suspend: "Your listing has been suspended",
+  new_message: "You have a new message",
+};
+
+function notifTitle(type: string): string {
+  return TYPE_TITLES[type] ?? type.replace(/_/g, " ").replace(/\b\w/g, (c) => c.toUpperCase());
+}
+
+function notifBody(n: Notif): string {
+  if (typeof n.payload?.message === "string") return n.payload.message as string;
+  return "";
+}
+
 function NotificationsPage() {
   const { user } = useAuth();
   const [items, setItems] = useState<Notif[]>([]);
@@ -89,9 +105,9 @@ function NotificationsPage() {
               >
                 <div className="flex items-start justify-between gap-3">
                   <div>
-                    <div className="text-sm font-semibold capitalize">{n.type.replace(/_/g, " ")}</div>
+                    <div className="text-sm font-semibold">{notifTitle(n.type)}</div>
                     <div className="mt-1 text-sm text-muted-foreground">
-                      {typeof n.payload?.message === "string" ? (n.payload.message as string) : JSON.stringify(n.payload)}
+                      {notifBody(n)}
                     </div>
                   </div>
                   <div className="shrink-0 text-xs text-muted-foreground">

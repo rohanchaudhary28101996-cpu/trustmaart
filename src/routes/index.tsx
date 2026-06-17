@@ -94,6 +94,21 @@ function HomePage() {
         </div>
       </section>
 
+      {/* SERVICE CATEGORIES */}
+      {data.categories.filter((c) => c.type === "service").length > 0 && (
+        <section className="mx-auto max-w-7xl px-4 py-6">
+          <SectionHeader title="Services" link={{ label: "Browse services", to: "/browse" }} />
+          <div className="mt-5 grid grid-cols-3 gap-3 sm:grid-cols-4 md:grid-cols-6 lg:grid-cols-10">
+            {data.categories
+              .filter((c) => c.type === "service")
+              .slice(0, 10)
+              .map((c) => (
+                <CategoryTile key={c.id} slug={c.slug} name={c.name_en} icon={c.icon} />
+              ))}
+          </div>
+        </section>
+      )}
+
       {/* FEATURED */}
       {data.featured.length > 0 && (
         <section className="mx-auto max-w-7xl px-4 py-6">

@@ -105,7 +105,7 @@ function Dashboard() {
                   <Button size="sm" variant="outline" onClick={() => markSold(l.id)}>Mark sold</Button>
                 )}
                 <Button size="icon" variant="ghost" asChild>
-                  <Link to="/listing/$id" params={{ id: l.id }}><Pencil className="h-4 w-4" /></Link>
+                  <Link to="/edit/$id" params={{ id: l.id }}><Pencil className="h-4 w-4" /></Link>
                 </Button>
                 <Button size="icon" variant="ghost" onClick={() => del(l.id)}>
                   <Trash2 className="h-4 w-4 text-destructive" />

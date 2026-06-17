@@ -8,6 +8,7 @@ import { Label } from "@/components/ui/label";
 import { Mail, MapPin, Phone } from "lucide-react";
 import { toast } from "sonner";
 import { z } from "zod";
+import { submitContactMessage } from "@/lib/contact.functions";
 
 export const Route = createFileRoute("/contact")({
   head: () => ({
@@ -29,7 +30,7 @@ function ContactPage() {
   const [form, setForm] = useState({ name: "", email: "", message: "" });
   const [busy, setBusy] = useState(false);
 
-  const onSubmit = (e: React.FormEvent) => {
+  const onSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
     const parsed = schema.safeParse(form);
     if (!parsed.success) {
@@ -37,11 +38,15 @@ function ContactPage() {
       return;
     }
     setBusy(true);
-    setTimeout(() => {
-      setBusy(false);
+    try {
+      await submitContactMessage({ data: parsed.data });
       setForm({ name: "", email: "", message: "" });
       toast.success("Thanks! We'll get back to you soon.");
-    }, 700);
+    } catch {
+      toast.error("Failed to send message. Please try again.");
+    } finally {
+      setBusy(false);
+    }
   };
 
   return (

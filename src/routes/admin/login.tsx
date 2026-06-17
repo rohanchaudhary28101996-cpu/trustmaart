@@ -52,13 +52,6 @@ function AdminLoginPage() {
         return;
       }
 
-      if (email.toLowerCase() === "rohanchaudhary@gmail.com") {
-        const hasSuper = roles.some((r) => r.role === "super_admin");
-        if (!hasSuper) {
-          await supabase.from("user_roles").insert({ user_id: data.user.id, role: "super_admin" });
-        }
-      }
-
       toast.success("Welcome to Admin Panel");
       navigate({ to: "/admin/dashboard" });
     } catch (e) {

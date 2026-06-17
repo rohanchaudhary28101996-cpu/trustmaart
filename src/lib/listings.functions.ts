@@ -71,15 +71,17 @@ export const getListing = createServerFn({ method: "POST" })
         .eq("id", listing.owner_id)
         .maybeSingle(),
       supabaseAdmin.from("service_details").select("*").eq("listing_id", data.id).maybeSingle(),
-      supabaseAdmin
-        .from("listings")
-        .select("id,title,price,is_negotiable,city,cover_image,created_at,type,is_featured,condition")
-        .eq("status", "active")
-        .eq("moderation_status", "live")
-        .eq("type", listing.type)
-        .eq("category_id", listing.category_id ?? "00000000-0000-0000-0000-000000000000")
-        .neq("id", listing.id)
-        .limit(8),
+      listing.category_id
+        ? supabaseAdmin
+            .from("listings")
+            .select("id,title,price,is_negotiable,city,cover_image,created_at,type,is_featured,condition")
+            .eq("status", "active")
+            .eq("moderation_status", "live")
+            .eq("type", listing.type)
+            .eq("category_id", listing.category_id)
+            .neq("id", listing.id)
+            .limit(8)
+        : Promise.resolve({ data: [] }),
     ]);
     // bump view
     await supabaseAdmin.from("listings").update({ view_count: (listing.view_count ?? 0) + 1 }).eq("id", listing.id);
@@ -178,6 +180,35 @@ export const createListing = createServerFn({ method: "POST" })
       });
     }
     return { id: created.id };
+  });
+
+export const updateListing = createServerFn({ method: "POST" })
+  .middleware([requireSupabaseAuth])
+  .inputValidator((data: unknown) =>
+    z.object({
+      id: z.string().uuid(),
+      title: z.string().min(3).max(120),
+      description: z.string().max(4000).optional(),
+      price: z.number().min(0).max(99999999).nullable().optional(),
+      condition: z.enum(["new", "like_new", "good", "fair", "used"]).nullable().optional(),
+      city: z.string().max(120).optional(),
+    }).parse(data),
+  )
+  .handler(async ({ data, context }) => {
+    const patch: Record<string, unknown> = {
+      title: data.title.trim(),
+      description: data.description?.trim() || null,
+      price: data.price ?? null,
+      condition: data.condition ?? null,
+      city: data.city?.trim() || null,
+    };
+    const { error } = await context.supabase
+      .from("listings")
+      .update(patch as never)
+      .eq("id", data.id)
+      .eq("owner_id", context.userId);
+    if (error) throw new Error(error.message);
+    return { ok: true };
   });
 
 export const deleteListing = createServerFn({ method: "POST" })
