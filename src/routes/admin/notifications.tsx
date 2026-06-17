@@ -4,7 +4,7 @@ import { Bell, CheckCheck, MessageSquare, CircleAlert as AlertCircle, Info } fro
 import { AdminShell } from "@/components/admin/AdminShell";
 import { Card } from "@/components/ui/card";
 import { Badge } from "@/components/ui/badge";
-import { supabase } from "@/integrations/supabase/client";
+import { adminListAllNotifications } from "@/lib/admin.functions";
 import { timeAgo } from "@/lib/format";
 import { cn } from "@/lib/utils";
 
@@ -16,20 +16,7 @@ export const Route = createFileRoute("/admin/notifications")({
 function AdminNotificationsPage() {
   const { data: notifications = [], isLoading } = useQuery({
     queryKey: ["admin-notifications"],
-    queryFn: async () => {
-      const { data } = await supabase
-        .from("notifications")
-        .select("*")
-        .order("created_at", { ascending: false })
-        .limit(100);
-      return (data ?? []) as Array<{
-        id: string;
-        type: string;
-        payload: Record<string, unknown>;
-        read_at: string | null;
-        created_at: string;
-      }>;
-    },
+    queryFn: () => adminListAllNotifications(),
   });
 
   const typeIcon = (type: string) => {

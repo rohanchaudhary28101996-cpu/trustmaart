@@ -397,3 +397,19 @@ export const adminGetMessages = createServerFn({ method: "POST" })
       .limit(200);
     return msgs ?? [];
   });
+
+export const adminListAllNotifications = createServerFn({ method: "GET" })
+  .middleware([requireSupabaseAuth])
+  .handler(async ({ context }) => {
+    await ensureAdmin(context.supabase, context.userId);
+    const { supabaseAdmin } = await import("@/integrations/supabase/client.server");
+    const { data } = await supabaseAdmin
+      .from("notifications")
+      .select("id,user_id,type,payload,read_at,created_at")
+      .order("created_at", { ascending: false })
+      .limit(200);
+    return (data ?? []) as Array<{
+      id: string; user_id: string; type: string;
+      payload: Record<string, unknown>; read_at: string | null; created_at: string;
+    }>;
+  });
