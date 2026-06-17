@@ -29,6 +29,7 @@ function AdminLayout() {
   const { user, roles, loading } = useAuth();
 
   useEffect(() => {
+    if (window.location.pathname === "/admin/login") return;
     if (!loading && (!user || !roles.some((r) => ["admin", "super_admin"].includes(r)))) {
       window.location.href = "/";
     }
