@@ -252,11 +252,7 @@ function ListingDetailPage() {
               <div className="mt-4 space-y-2">
                 {!isOwner && (
                   <Button className="w-full gap-2" size="lg" onClick={handleChat} disabled={chatLoading}>
-<<<<<<< HEAD
-                    {chatLoading ? <Loader2 className="h-4 w-4 animate-spin" /> : <MessageCircle className="h-4 w-4" />} Chat with seller
-=======
                     <MessageCircle className="h-4 w-4" /> {chatLoading ? "Opening chat…" : "Chat with seller"}
->>>>>>> d90ec30 (fix: admin login redirect bug, remove hardcoded email, wire up chat button)
                   </Button>
                 )}
                 <div className="grid grid-cols-2 gap-2">
