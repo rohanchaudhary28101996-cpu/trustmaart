@@ -36,47 +36,72 @@ export const startOrGetConversation = createServerFn({ method: "POST" })
 export const myConversations = createServerFn({ method: "GET" })
   .middleware([requireSupabaseAuth])
   .handler(async ({ context }) => {
-    const { supabase, userId } = context;
-    const { data, error } = await supabase
+    const { supabaseAdmin } = await import("@/integrations/supabase/client.server");
+    const { userId } = context;
+    const { data, error } = await supabaseAdmin
       .from("conversations")
-      .select(
-        "id,last_message_at,last_message_preview,buyer_id,seller_id,listing:listings(id,title,cover_image,price),buyer:profiles!conversations_buyer_id_fkey(id,full_name,avatar_url),seller:profiles!conversations_seller_id_fkey(id,full_name,avatar_url)",
-      )
+      .select("id,last_message_at,last_message_preview,buyer_id,seller_id,listing_id")
       .or(`buyer_id.eq.${userId},seller_id.eq.${userId}`)
       .order("last_message_at", { ascending: false })
       .limit(100);
     if (error) throw new Error(error.message);
-    return (data ?? []).map((c: Record<string, unknown>) => ({ ...c, me: userId }));
+    const convs = data ?? [];
+    if (!convs.length) return [];
+
+    const profileIds = [...new Set(convs.flatMap((c) => [c.buyer_id, c.seller_id]))];
+    const listingIds = [...new Set(convs.map((c) => c.listing_id).filter(Boolean))];
+
+    const [{ data: profiles }, { data: listings }] = await Promise.all([
+      supabaseAdmin.from("profiles").select("id,full_name,avatar_url").in("id", profileIds),
+      supabaseAdmin.from("listings").select("id,title,cover_image,price").in("id", listingIds),
+    ]);
+
+    const profileMap = Object.fromEntries((profiles ?? []).map((p) => [p.id, p]));
+    const listingMap = Object.fromEntries((listings ?? []).map((l) => [l.id, l]));
+
+    return convs.map((c) => ({
+      ...c,
+      me: userId,
+      buyer: profileMap[c.buyer_id] ?? null,
+      seller: profileMap[c.seller_id] ?? null,
+      listing: c.listing_id ? listingMap[c.listing_id] ?? null : null,
+    }));
   });
 
 export const getConversation = createServerFn({ method: "POST" })
   .middleware([requireSupabaseAuth])
   .inputValidator((data: unknown) => z.object({ id: z.string().uuid() }).parse(data))
   .handler(async ({ data, context }) => {
-    const { supabase, userId } = context;
-    const { data: conv, error } = await supabase
+    const { supabaseAdmin } = await import("@/integrations/supabase/client.server");
+    const { userId } = context;
+    const { data: conv, error } = await supabaseAdmin
       .from("conversations")
-      .select(
-        "id,buyer_id,seller_id,listing:listings(id,title,price,is_negotiable,cover_image,type),buyer:profiles!conversations_buyer_id_fkey(id,full_name,avatar_url,is_verified),seller:profiles!conversations_seller_id_fkey(id,full_name,avatar_url,is_verified)",
-      )
+      .select("id,buyer_id,seller_id,listing_id")
       .eq("id", data.id)
       .maybeSingle();
     if (error || !conv) throw new Error("Conversation not found");
     if (conv.buyer_id !== userId && conv.seller_id !== userId) throw new Error("Forbidden");
-    const { data: messages } = await supabase
+
+    const [{ data: buyer }, { data: seller }, { data: listing }] = await Promise.all([
+      supabaseAdmin.from("profiles").select("id,full_name,avatar_url,is_verified").eq("id", conv.buyer_id).maybeSingle(),
+      supabaseAdmin.from("profiles").select("id,full_name,avatar_url,is_verified").eq("id", conv.seller_id).maybeSingle(),
+      conv.listing_id ? supabaseAdmin.from("listings").select("id,title,price,is_negotiable,cover_image,type").eq("id", conv.listing_id).maybeSingle() : Promise.resolve({ data: null }),
+    ]);
+    const convWithRelations = { ...conv, buyer, seller, listing: listing ?? null };
+    const { data: messages } = await supabaseAdmin
       .from("messages")
       .select("id,body,image_url,sender_id,read_at,created_at")
       .eq("conversation_id", data.id)
       .order("created_at", { ascending: true })
       .limit(200);
     // mark others' messages as read
-    await supabase
+    await supabaseAdmin
       .from("messages")
       .update({ read_at: new Date().toISOString() })
       .eq("conversation_id", data.id)
       .neq("sender_id", userId)
       .is("read_at", null);
-    return { conversation: conv, messages: messages ?? [], me: userId };
+    return { conversation: convWithRelations, messages: messages ?? [], me: userId };
   });
 
 export const sendMessage = createServerFn({ method: "POST" })
