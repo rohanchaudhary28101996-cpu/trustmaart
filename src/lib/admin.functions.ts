@@ -349,13 +349,22 @@ export const adminGetConversations = createServerFn({ method: "GET" })
   .handler(async ({ context }) => {
     await ensureAdmin(context.supabase, context.userId);
     const { supabaseAdmin } = await import("@/integrations/supabase/client.server");
-    const { data } = await supabaseAdmin
+    const { data: convs } = await supabaseAdmin
       .from("conversations")
-      .select(
-        "id,last_message_at,last_message_preview,buyer_id,seller_id,listing:listings(id,title,cover_image,price),buyer:profiles!conversations_buyer_id_fkey(id,full_name,avatar_url),seller:profiles!conversations_seller_id_fkey(id,full_name,avatar_url)",
-      )
+      .select("id,last_message_at,last_message_preview,buyer_id,seller_id,listing_id")
       .order("last_message_at", { ascending: false })
       .limit(200);
+    if (!convs?.length) return [];
+
+    const profileIds = [...new Set((convs).flatMap((c) => [c.buyer_id, c.seller_id]))];
+    const listingIds = [...new Set((convs).map((c) => c.listing_id).filter(Boolean))] as string[];
+    const [{ data: profiles }, { data: listings }] = await Promise.all([
+      supabaseAdmin.from("profiles").select("id,full_name,avatar_url").in("id", profileIds),
+      supabaseAdmin.from("listings").select("id,title,cover_image,price").in("id", listingIds),
+    ]);
+    const profileMap = Object.fromEntries((profiles ?? []).map((p) => [p.id, p]));
+    const listingMap = Object.fromEntries((listings ?? []).map((l) => [l.id, l]));
+
     type ConvRow = {
       id: string;
       last_message_at: string | null;
@@ -366,7 +375,12 @@ export const adminGetConversations = createServerFn({ method: "GET" })
       buyer: { id: string; full_name: string | null; avatar_url: string | null } | null;
       seller: { id: string; full_name: string | null; avatar_url: string | null } | null;
     };
-    return (data ?? []) as unknown as ConvRow[];
+    return convs.map((c) => ({
+      ...c,
+      buyer: profileMap[c.buyer_id] ?? null,
+      seller: profileMap[c.seller_id] ?? null,
+      listing: c.listing_id ? listingMap[c.listing_id] ?? null : null,
+    })) as ConvRow[];
   });
 
 export const adminGetMessages = createServerFn({ method: "POST" })
