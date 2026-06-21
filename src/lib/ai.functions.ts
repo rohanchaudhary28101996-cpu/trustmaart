@@ -14,7 +14,10 @@ function dataUrlToInlineData(dataUrl: string): { mime_type: string; data: string
 
 async function callGemini(opts: { system: string; parts: GeminiPart[]; temperature?: number }): Promise<string> {
   const key = process.env.GEMINI_API_KEY;
-  if (!key) throw new Error("AI is not configured");
+  if (!key) {
+    console.error("[Gemini] GEMINI_API_KEY is not set");
+    throw new Error("AI is not configured");
+  }
   const res = await fetch(`${GEMINI_URL}?key=${key}`, {
     method: "POST",
     headers: { "Content-Type": "application/json" },
@@ -27,9 +30,10 @@ async function callGemini(opts: { system: string; parts: GeminiPart[]; temperatu
       },
     }),
   });
-  if (res.status === 429) throw new Error("AI is busy, please try again in a moment.");
   if (!res.ok) {
     const text = await res.text().catch(() => "");
+    console.error(`[Gemini] HTTP ${res.status}: ${text.slice(0, 1000)}`);
+    if (res.status === 429) throw new Error("AI is busy, please try again in a moment.");
     throw new Error(`AI error (${res.status}): ${text.slice(0, 200)}`);
   }
   const json = (await res.json()) as {
