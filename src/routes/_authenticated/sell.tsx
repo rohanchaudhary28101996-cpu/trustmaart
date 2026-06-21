@@ -24,12 +24,33 @@ export const Route = createFileRoute("/_authenticated/sell")({
 
 type Cond = "new" | "like_new" | "good" | "fair" | "used";
 
-function fileToDataUrl(file: File): Promise<string> {
+// Downscale to a max dimension before sending to the AI — the model only
+// needs to recognize the product, not full camera resolution.
+function fileToResizedDataUrl(file: File, maxDim = 1024, quality = 0.8): Promise<string> {
   return new Promise((resolve, reject) => {
-    const reader = new FileReader();
-    reader.onload = () => resolve(reader.result as string);
-    reader.onerror = () => reject(new Error("Failed to read file"));
-    reader.readAsDataURL(file);
+    const img = new Image();
+    const url = URL.createObjectURL(file);
+    img.onload = () => {
+      URL.revokeObjectURL(url);
+      let { width, height } = img;
+      if (width > maxDim || height > maxDim) {
+        const scale = maxDim / Math.max(width, height);
+        width = Math.round(width * scale);
+        height = Math.round(height * scale);
+      }
+      const canvas = document.createElement("canvas");
+      canvas.width = width;
+      canvas.height = height;
+      const ctx = canvas.getContext("2d");
+      if (!ctx) return reject(new Error("Canvas not supported"));
+      ctx.drawImage(img, 0, 0, width, height);
+      resolve(canvas.toDataURL("image/jpeg", quality));
+    };
+    img.onerror = () => {
+      URL.revokeObjectURL(url);
+      reject(new Error("Failed to load image"));
+    };
+    img.src = url;
   });
 }
 
@@ -106,7 +127,7 @@ function SellPage() {
         continue;
       }
       try {
-        const dataUrl = await fileToDataUrl(f);
+        const dataUrl = await fileToResizedDataUrl(f);
         added.push({ dataUrl, file: f });
       } catch (e) {
         toast.error((e as Error).message);

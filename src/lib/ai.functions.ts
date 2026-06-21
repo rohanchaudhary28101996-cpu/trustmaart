@@ -48,7 +48,7 @@ function extractJson<T>(text: string): T {
 
 const GenerateInput = z.object({
   notes: z.string().max(800).optional().default(""),
-  imageDataUrls: z.array(z.string().min(20).max(2_000_000)).max(4).optional().default([]),
+  imageDataUrls: z.array(z.string().min(20).max(4_000_000)).max(4).optional().default([]),
 });
 
 export const generateListing = createServerFn({ method: "POST" })
