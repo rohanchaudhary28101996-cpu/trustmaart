@@ -231,17 +231,28 @@ export function Header() {
         </nav>
       </div>
 
-      <form onSubmit={onSearch} className="border-t border-border/60 px-4 py-2 md:hidden">
-        <div className="relative">
-          <Search className="pointer-events-none absolute left-3 top-1/2 h-4 w-4 -translate-y-1/2 text-muted-foreground" />
-          <Input
-            value={q}
-            onChange={(e) => setQ(e.target.value)}
-            placeholder={t("hero.search")}
-            className="h-10 rounded-full bg-secondary/60 pl-9 pr-4"
-          />
-        </div>
-      </form>
+      <div className="border-t border-border/60 px-4 py-2 md:hidden">
+        <form onSubmit={onSearch} className="flex-1">
+          <div className="relative">
+            <Search className="pointer-events-none absolute left-3 top-1/2 h-4 w-4 -translate-y-1/2 text-muted-foreground" />
+            <Input
+              value={q}
+              onChange={(e) => setQ(e.target.value)}
+              placeholder={t("hero.search")}
+              className="h-10 rounded-full bg-secondary/60 pl-9 pr-4"
+            />
+          </div>
+        </form>
+        <button
+          type="button"
+          onClick={() => setCityOpen(true)}
+          className="mt-2 flex items-center gap-1 text-xs text-muted-foreground hover:text-foreground"
+        >
+          <MapPin className="h-3.5 w-3.5 text-primary" />
+          <span className="max-w-[160px] truncate">{city || "All India"}</span>
+          <ChevronDown className="h-3 w-3" />
+        </button>
+      </div>
     </header>
   );
 }

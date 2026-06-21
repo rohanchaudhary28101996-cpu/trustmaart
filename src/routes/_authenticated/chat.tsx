@@ -30,7 +30,7 @@ function ChatLayout() {
 
   return (
     <AppShell hideFooter>
-      <div className="mx-auto flex h-[calc(100vh-4rem)] max-w-6xl">
+      <div className="mx-auto flex h-full max-w-6xl">
         <aside className={`w-full overflow-y-auto border-r md:w-80 md:block ${isDetail ? "hidden md:block" : ""}`}>
           <div className="border-b px-4 py-3">
             <h1 className="flex items-center gap-2 text-lg font-semibold"><MessageCircle className="h-5 w-5 text-primary" /> Inbox</h1>
