@@ -1,29 +1,41 @@
 import { createServerFn } from "@tanstack/react-start";
 import { z } from "zod";
 
-const GATEWAY_URL = "https://ai.gateway.lovable.dev/v1/chat/completions";
-const MODEL = "google/gemini-3-flash-preview";
+const GEMINI_MODEL = "gemini-2.0-flash";
+const GEMINI_URL = `https://generativelanguage.googleapis.com/v1beta/models/${GEMINI_MODEL}:generateContent`;
 
-async function callGateway(body: Record<string, unknown>): Promise<string> {
-  const key = process.env.LOVABLE_API_KEY;
+type GeminiPart = { text: string } | { inline_data: { mime_type: string; data: string } };
+
+function dataUrlToInlineData(dataUrl: string): { mime_type: string; data: string } {
+  const m = dataUrl.match(/^data:(.+?);base64,(.*)$/);
+  if (!m) throw new Error("Invalid image data");
+  return { mime_type: m[1], data: m[2] };
+}
+
+async function callGemini(opts: { system: string; parts: GeminiPart[]; temperature?: number }): Promise<string> {
+  const key = process.env.GEMINI_API_KEY;
   if (!key) throw new Error("AI is not configured");
-  const res = await fetch(GATEWAY_URL, {
+  const res = await fetch(`${GEMINI_URL}?key=${key}`, {
     method: "POST",
-    headers: {
-      "Content-Type": "application/json",
-      "Lovable-API-Key": key,
-      "X-Lovable-AIG-SDK": "vercel-ai-sdk",
-    },
-    body: JSON.stringify({ model: MODEL, ...body }),
+    headers: { "Content-Type": "application/json" },
+    body: JSON.stringify({
+      systemInstruction: { parts: [{ text: opts.system }] },
+      contents: [{ role: "user", parts: opts.parts }],
+      generationConfig: {
+        temperature: opts.temperature ?? 0.4,
+        responseMimeType: "application/json",
+      },
+    }),
   });
   if (res.status === 429) throw new Error("AI is busy, please try again in a moment.");
-  if (res.status === 402) throw new Error("AI credits exhausted. Please add credits to continue.");
   if (!res.ok) {
     const text = await res.text().catch(() => "");
     throw new Error(`AI error (${res.status}): ${text.slice(0, 200)}`);
   }
-  const json = (await res.json()) as { choices?: Array<{ message?: { content?: string } }> };
-  return json.choices?.[0]?.message?.content?.trim() ?? "";
+  const json = (await res.json()) as {
+    candidates?: Array<{ content?: { parts?: Array<{ text?: string }> } }>;
+  };
+  return json.candidates?.[0]?.content?.parts?.[0]?.text?.trim() ?? "";
 }
 
 function extractJson<T>(text: string): T {
@@ -57,17 +69,11 @@ export const generateListing = createServerFn({ method: "POST" })
       ? `Seller notes:\n"""${data.notes.trim()}"""\n\n`
       : `(No notes — infer everything from the photos.)\n\n`;
     const userText = `${textPart}Return JSON with this exact shape:\n{\n  "title": string (max 80 chars, catchy + specific, include brand/model if visible),\n  "description": string (120-400 chars, friendly, mentions key features and condition),\n  "category_slug": one of [${categorySlugs}],\n  "condition": one of ["new","like_new","good","fair","used"],\n  "tags": array of 3-6 short keywords,\n  "suggested_price_inr": number,\n  "price_note": short string explaining the price\n}`;
-    const content: Array<Record<string, unknown>> = [{ type: "text", text: userText }];
+    const parts: GeminiPart[] = [{ text: userText }];
     for (const url of data.imageDataUrls ?? []) {
-      content.push({ type: "image_url", image_url: { url } });
+      parts.push({ inline_data: dataUrlToInlineData(url) });
     }
-    const out = await callGateway({
-      messages: [
-        { role: "system", content: sys },
-        { role: "user", content },
-      ],
-      temperature: 0.4,
-    });
+    const out = await callGemini({ system: sys, parts, temperature: 0.4 });
     try {
       return extractJson<{
         title: string;
@@ -91,13 +97,7 @@ export const aiSearchListings = createServerFn({ method: "POST" })
   .handler(async ({ data }) => {
     const sys = `You convert Indian buyer queries into structured search filters for TrustMaart (a second-hand product marketplace). Reply ONLY in JSON.`;
     const userMsg = `Query: "${data.q}"\nReturn JSON:\n{\n  "keywords": string (a short search phrase),\n  "category_slug": string|null (one of mobiles,electronics,vehicles,furniture,fashion,appliances,books,sports,real-estate,pets),\n  "max_price_inr": number|null,\n  "min_price_inr": number|null,\n  "city": string|null,\n  "condition": "new"|"like_new"|"good"|"fair"|"used"|null,\n  "summary": string (one short sentence to show the buyer)\n}`;
-    const out = await callGateway({
-      messages: [
-        { role: "system", content: sys },
-        { role: "user", content: userMsg },
-      ],
-      temperature: 0.2,
-    });
+    const out = await callGemini({ system: sys, parts: [{ text: userMsg }], temperature: 0.2 });
     let parsed: {
       keywords: string;
       category_slug: string | null;
