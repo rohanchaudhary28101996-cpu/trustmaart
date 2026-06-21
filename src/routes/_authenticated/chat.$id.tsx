@@ -6,7 +6,7 @@ import { toast } from "sonner";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { AppImage } from "@/components/AppImage";
-import { Avatar, AvatarFallback } from "@/components/ui/avatar";
+import { UserAvatar } from "@/components/UserAvatar";
 import { supabase } from "@/integrations/supabase/client";
 import { getConversation, sendMessage } from "@/lib/chat.functions";
 import { formatINR, timeAgo } from "@/lib/format";
@@ -83,11 +83,7 @@ function ChatThread() {
         <Button variant="ghost" size="icon" className="md:hidden" onClick={() => navigate({ to: "/chat" })}>
           <ArrowLeft className="h-4 w-4" />
         </Button>
-        <Avatar className="h-9 w-9">
-          <AvatarFallback className="bg-primary/15 text-primary text-sm font-semibold">
-            {(other?.full_name ?? "U").slice(0, 1).toUpperCase()}
-          </AvatarFallback>
-        </Avatar>
+        <UserAvatar avatarPath={other?.avatar_url} name={other?.full_name} className="h-9 w-9 text-sm" />
         <div className="min-w-0 flex-1">
           <div className="truncate text-sm font-semibold">{other?.full_name ?? "User"}</div>
           {conv.listing && (

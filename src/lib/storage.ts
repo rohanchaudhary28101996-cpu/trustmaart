@@ -1,3 +1,4 @@
+import { useEffect, useState } from "react";
 import { supabase } from "@/integrations/supabase/client";
 
 type Bucket = "listing-images" | "chat-images" | "avatars";
@@ -42,6 +43,24 @@ export async function signedUrls(bucket: Bucket, paths: string[]): Promise<Recor
     });
   }
   return out;
+}
+
+export function useAvatarUrl(path: string | null | undefined): string {
+  const [url, setUrl] = useState("");
+  useEffect(() => {
+    let active = true;
+    if (!path) {
+      setUrl("");
+      return;
+    }
+    signedUrl("avatars", path).then((u) => {
+      if (active) setUrl(u);
+    });
+    return () => {
+      active = false;
+    };
+  }, [path]);
+  return url;
 }
 
 export async function uploadToBucket(

@@ -16,6 +16,7 @@ import {
   X,
 } from "lucide-react";
 import { useState } from "react";
+import { useQuery } from "@tanstack/react-query";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import {
@@ -26,11 +27,12 @@ import {
   DropdownMenuSeparator,
   DropdownMenuTrigger,
 } from "@/components/ui/dropdown-menu";
-import { Avatar, AvatarFallback, AvatarImage } from "@/components/ui/avatar";
+import { UserAvatar } from "@/components/UserAvatar";
 import { useAuth } from "@/lib/auth";
 import { useTheme } from "@/lib/theme";
 import { useI18n } from "@/lib/i18n";
 import { useCity, POPULAR_CITIES } from "@/lib/city";
+import { getMyProfile } from "@/lib/profile.functions";
 
 export function Header() {
   const { user, isSuperAdmin, signOut } = useAuth();
@@ -42,6 +44,11 @@ export function Header() {
   const [q, setQ] = useState("");
   const [cityOpen, setCityOpen] = useState(false);
   const [cityInput, setCityInput] = useState("");
+  const { data: myProfile } = useQuery({
+    queryKey: ["my-profile"],
+    queryFn: () => getMyProfile(),
+    enabled: !!user,
+  });
 
   const onSearch = (e: React.FormEvent) => {
     e.preventDefault();
@@ -167,12 +174,11 @@ export function Header() {
             <DropdownMenu>
               <DropdownMenuTrigger asChild>
                 <Button variant="ghost" size="icon" className="rounded-full">
-                  <Avatar className="h-8 w-8">
-                    <AvatarImage src={user.user_metadata?.avatar_url} />
-                    <AvatarFallback className="bg-primary/15 text-primary text-xs font-semibold">
-                      {(user.email ?? "U").slice(0, 1).toUpperCase()}
-                    </AvatarFallback>
-                  </Avatar>
+                  <UserAvatar
+                    avatarPath={myProfile?.avatar_url}
+                    name={myProfile?.full_name ?? user.email}
+                    className="h-8 w-8 text-xs"
+                  />
                 </Button>
               </DropdownMenuTrigger>
               <DropdownMenuContent align="end" className="w-56">

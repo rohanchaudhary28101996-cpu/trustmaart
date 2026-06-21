@@ -3,7 +3,7 @@ import { useQuery } from "@tanstack/react-query";
 import { MessageCircle } from "lucide-react";
 import { AppShell } from "@/components/layout/AppShell";
 import { AppImage } from "@/components/AppImage";
-import { Avatar, AvatarFallback } from "@/components/ui/avatar";
+import { UserAvatar } from "@/components/UserAvatar";
 import { myConversations } from "@/lib/chat.functions";
 import { timeAgo } from "@/lib/format";
 
@@ -51,11 +51,7 @@ function ChatLayout() {
                       className="flex gap-3 border-b p-3 hover:bg-secondary/50"
                       activeProps={{ className: "bg-secondary/70" }}
                     >
-                      <Avatar className="h-10 w-10">
-                        <AvatarFallback className="bg-primary/15 text-primary text-sm font-semibold">
-                          {(other?.full_name ?? "U").slice(0, 1).toUpperCase()}
-                        </AvatarFallback>
-                      </Avatar>
+                      <UserAvatar avatarPath={other?.avatar_url} name={other?.full_name} className="h-10 w-10 text-sm" />
                       <div className="min-w-0 flex-1">
                         <div className="flex items-baseline justify-between gap-2">
                           <span className="truncate text-sm font-medium">{other?.full_name ?? "User"}</span>

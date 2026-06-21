@@ -17,6 +17,7 @@ import {
 import { adminListUsers, adminToggleUserFlag, adminAssignRole } from "@/lib/admin.functions";
 import { timeAgo } from "@/lib/format";
 import { useAuth } from "@/lib/auth";
+import { UserAvatar } from "@/components/UserAvatar";
 
 export const Route = createFileRoute("/admin/users")({
   ssr: false,
@@ -72,25 +73,7 @@ function UsersPage() {
           ) : (
             users.map((u) => (
               <Card key={u.id} className="flex flex-wrap items-center gap-3 p-3">
-                <div className="h-10 w-10 shrink-0 overflow-hidden rounded-full bg-muted">
-                  {u.avatar_url ? (
-                    <img
-                      src={u.avatar_url}
-                      alt={u.full_name ?? "User"}
-                      className="h-full w-full object-cover"
-                      onError={(e) => {
-                        (e.currentTarget as HTMLImageElement).style.display = "none";
-                        (e.currentTarget.nextElementSibling as HTMLElement | null)?.style.setProperty("display", "grid");
-                      }}
-                    />
-                  ) : null}
-                  <div
-                    className="h-full w-full place-items-center text-xs font-bold text-primary"
-                    style={{ display: u.avatar_url ? "none" : "grid" }}
-                  >
-                    {(u.full_name ?? "U").slice(0, 1).toUpperCase()}
-                  </div>
-                </div>
+                <UserAvatar avatarPath={u.avatar_url} name={u.full_name} className="h-10 w-10 shrink-0" />
                 <div className="min-w-0 flex-1">
                   <div className="flex flex-wrap items-center gap-2">
                     <span className="font-medium">{u.full_name ?? "User"}</span>
@@ -133,25 +116,7 @@ function UsersPage() {
           {viewUser && (
             <div className="space-y-3 text-sm">
               <div className="flex items-center gap-3">
-                <div className="h-14 w-14 overflow-hidden rounded-full bg-muted">
-                  {viewUser.avatar_url ? (
-                    <img
-                      src={viewUser.avatar_url}
-                      alt={viewUser.full_name ?? "User"}
-                      className="h-full w-full object-cover"
-                      onError={(e) => {
-                        (e.currentTarget as HTMLImageElement).style.display = "none";
-                        (e.currentTarget.nextElementSibling as HTMLElement | null)?.style.setProperty("display", "grid");
-                      }}
-                    />
-                  ) : null}
-                  <div
-                    className="h-full w-full place-items-center text-sm font-bold text-primary"
-                    style={{ display: viewUser.avatar_url ? "none" : "grid" }}
-                  >
-                    {(viewUser.full_name ?? "U").slice(0, 1).toUpperCase()}
-                  </div>
-                </div>
+                <UserAvatar avatarPath={viewUser.avatar_url} name={viewUser.full_name} className="h-14 w-14 text-sm" />
                 <div>
                   <div className="font-semibold">{viewUser.full_name ?? "User"}</div>
                   <div className="text-muted-foreground">{viewUser.city ?? "—"}</div>
