@@ -194,6 +194,7 @@ export type Database = {
           is_negotiable: boolean
           moderation_status: Database["public"]["Enums"]["listing_moderation_status"]
           owner_id: string
+          pincode: string | null
           price: number | null
           rejection_reason: string | null
           reviewed_at: string | null
@@ -221,6 +222,7 @@ export type Database = {
           is_negotiable?: boolean
           moderation_status?: Database["public"]["Enums"]["listing_moderation_status"]
           owner_id: string
+          pincode?: string | null
           price?: number | null
           rejection_reason?: string | null
           reviewed_at?: string | null
@@ -248,6 +250,7 @@ export type Database = {
           is_negotiable?: boolean
           moderation_status?: Database["public"]["Enums"]["listing_moderation_status"]
           owner_id?: string
+          pincode?: string | null
           price?: number | null
           rejection_reason?: string | null
           reviewed_at?: string | null

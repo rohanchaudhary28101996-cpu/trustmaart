@@ -1,8 +1,8 @@
 import { createFileRoute, useNavigate } from "@tanstack/react-router";
 import { useQuery } from "@tanstack/react-query";
-import { useState } from "react";
+import { useState, useEffect } from "react";
 import { toast } from "sonner";
-import { Sparkles, Upload, X, Loader2, ImagePlus, Camera } from "lucide-react";
+import { Sparkles, Upload, X, Loader2, ImagePlus, Camera, Loader } from "lucide-react";
 import { AppShell } from "@/components/layout/AppShell";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
@@ -44,10 +44,39 @@ function SellPage() {
   const [condition, setCondition] = useState<Cond | "">("good");
   const [brand, setBrand] = useState("");
   const [categoryId, setCategoryId] = useState<string>("");
+  const [pincode, setPincode] = useState("");
   const [city, setCity] = useState("");
   const [state, setState] = useState("");
+  const [pincodeLookupLoading, setPincodeLookupLoading] = useState(false);
   const [images, setImages] = useState<string[]>([]);
   const [uploading, setUploading] = useState(false);
+
+  useEffect(() => {
+    if (!/^\d{6}$/.test(pincode)) return;
+    let active = true;
+    setPincodeLookupLoading(true);
+    fetch(`https://api.postalpincode.in/pincode/${pincode}`)
+      .then((r) => r.json())
+      .then((data) => {
+        if (!active) return;
+        const office = data?.[0]?.PostOffice?.[0];
+        if (data?.[0]?.Status === "Success" && office) {
+          setCity(office.District || office.Name || "");
+          setState(office.State || "");
+        } else {
+          toast.error("Couldn't find that pincode. Enter city/state manually.");
+        }
+      })
+      .catch(() => {
+        if (active) toast.error("Couldn't look up pincode. Enter city/state manually.");
+      })
+      .finally(() => {
+        if (active) setPincodeLookupLoading(false);
+      });
+    return () => {
+      active = false;
+    };
+  }, [pincode]);
 
   // AI helper state
   const [aiNotes, setAiNotes] = useState("");
@@ -181,22 +210,31 @@ function SellPage() {
 
   async function onSubmit(e: React.FormEvent) {
     e.preventDefault();
-    if (!title.trim() || title.trim().length < 3) return toast.error("Add a title");
     if (images.length === 0) return toast.error("Add at least 1 photo");
+    if (!title.trim() || title.trim().length < 3) return toast.error("Add a title (at least 3 characters)");
+    if (!description.trim() || description.trim().length < 10) return toast.error("Add a description (at least 10 characters)");
+    if (!price || Number(price) <= 0) return toast.error("Add a valid price");
+    if (!categoryId) return toast.error("Choose a category");
+    if (!condition) return toast.error("Choose a condition");
+    if (!brand.trim()) return toast.error("Add a brand");
+    if (!/^\d{6}$/.test(pincode)) return toast.error("Add a valid 6-digit pincode");
+    if (!city.trim()) return toast.error("City is required");
+    if (!state.trim()) return toast.error("State is required");
     setSubmitting(true);
     try {
       const res = await createListing({
         data: {
           type: "product",
           title: title.trim(),
-          description: description.trim() || undefined,
-          price: price ? Number(price) : null,
+          description: description.trim(),
+          price: Number(price),
           is_negotiable: negotiable,
-          condition: (condition || null) as Cond | null,
-          brand: brand.trim() || undefined,
-          category_id: categoryId || null,
-          city: city.trim() || undefined,
-          state: state.trim() || undefined,
+          condition: condition as Cond,
+          brand: brand.trim(),
+          category_id: categoryId,
+          pincode,
+          city: city.trim(),
+          state: state.trim(),
           images,
         },
       });
@@ -316,19 +354,19 @@ function SellPage() {
           </div>
 
           <div>
-            <Label htmlFor="title">Title</Label>
-            <Input id="title" value={title} onChange={(e) => setTitle(e.target.value)} maxLength={120} required />
+            <Label htmlFor="title">Title <span className="text-destructive">*</span></Label>
+            <Input id="title" value={title} onChange={(e) => setTitle(e.target.value)} maxLength={120} required minLength={3} />
           </div>
 
           <div>
-            <Label htmlFor="description">Description</Label>
-            <Textarea id="description" value={description} onChange={(e) => setDescription(e.target.value)} rows={5} maxLength={4000} />
+            <Label htmlFor="description">Description <span className="text-destructive">*</span></Label>
+            <Textarea id="description" value={description} onChange={(e) => setDescription(e.target.value)} rows={5} maxLength={4000} required minLength={10} />
           </div>
 
           <div className="grid gap-4 sm:grid-cols-2">
             <div>
-              <Label htmlFor="price">Price (₹)</Label>
-              <Input id="price" type="number" min="0" value={price} onChange={(e) => setPrice(e.target.value)} />
+              <Label htmlFor="price">Price (₹) <span className="text-destructive">*</span></Label>
+              <Input id="price" type="number" min="1" value={price} onChange={(e) => setPrice(e.target.value)} required />
             </div>
             <div className="flex items-end gap-3">
               <div className="flex items-center gap-2">
@@ -340,7 +378,7 @@ function SellPage() {
 
           <div className="grid gap-4 sm:grid-cols-2">
             <div>
-              <Label>Category</Label>
+              <Label>Category <span className="text-destructive">*</span></Label>
               <Select value={categoryId} onValueChange={setCategoryId}>
                 <SelectTrigger><SelectValue placeholder="Choose category" /></SelectTrigger>
                 <SelectContent>
@@ -351,7 +389,7 @@ function SellPage() {
               </Select>
             </div>
             <div>
-              <Label>Condition</Label>
+              <Label>Condition <span className="text-destructive">*</span></Label>
               <Select value={condition} onValueChange={(v) => setCondition(v as Cond)}>
                 <SelectTrigger><SelectValue placeholder="Condition" /></SelectTrigger>
                 <SelectContent>
@@ -366,20 +404,38 @@ function SellPage() {
           </div>
 
           <div>
-            <Label htmlFor="brand">Brand</Label>
-            <Input id="brand" value={brand} onChange={(e) => setBrand(e.target.value)} maxLength={80} />
+            <Label htmlFor="brand">Brand <span className="text-destructive">*</span></Label>
+            <Input id="brand" value={brand} onChange={(e) => setBrand(e.target.value)} maxLength={80} required />
           </div>
 
-          <div className="grid gap-4 sm:grid-cols-2">
+          <div className="grid gap-4 sm:grid-cols-3">
             <div>
-              <Label htmlFor="city">City</Label>
-              <Input id="city" value={city} onChange={(e) => setCity(e.target.value)} maxLength={120} />
+              <Label htmlFor="pincode">Pincode <span className="text-destructive">*</span></Label>
+              <div className="relative">
+                <Input
+                  id="pincode"
+                  value={pincode}
+                  onChange={(e) => setPincode(e.target.value.replace(/\D/g, "").slice(0, 6))}
+                  maxLength={6}
+                  inputMode="numeric"
+                  placeholder="e.g. 400001"
+                  required
+                />
+                {pincodeLookupLoading && (
+                  <Loader className="absolute right-3 top-1/2 h-4 w-4 -translate-y-1/2 animate-spin text-muted-foreground" />
+                )}
+              </div>
             </div>
             <div>
-              <Label htmlFor="state">State</Label>
-              <Input id="state" value={state} onChange={(e) => setState(e.target.value)} maxLength={120} />
+              <Label htmlFor="city">City <span className="text-destructive">*</span></Label>
+              <Input id="city" value={city} onChange={(e) => setCity(e.target.value)} maxLength={120} required />
+            </div>
+            <div>
+              <Label htmlFor="state">State <span className="text-destructive">*</span></Label>
+              <Input id="state" value={state} onChange={(e) => setState(e.target.value)} maxLength={120} required />
             </div>
           </div>
+          <p className="text-xs text-muted-foreground">Enter your pincode and we'll fill in city &amp; state automatically — you can still edit them.</p>
 
           <div className="flex justify-end gap-2 pt-2">
             <Button type="button" variant="ghost" onClick={() => navigate({ to: "/" })}>Cancel</Button>
