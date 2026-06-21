@@ -20,8 +20,10 @@ export function AppImage({
   onClick?: () => void;
 }) {
   const [src, setSrc] = useState<string>("");
+  const [errored, setErrored] = useState(false);
   useEffect(() => {
     let active = true;
+    setErrored(false);
     if (!path) {
       setSrc("");
       return;
@@ -33,14 +35,21 @@ export function AppImage({
       active = false;
     };
   }, [bucket, path]);
+
+  if (!path || errored) {
+    return <img src={fallback} alt={alt} loading="lazy" className={cn("object-cover", className)} onClick={onClick} />;
+  }
+  if (!src) {
+    return <div className={cn("animate-pulse bg-muted", className)} onClick={onClick} />;
+  }
   return (
     <img
-      src={src || fallback}
+      src={src}
       alt={alt}
       loading="lazy"
       className={cn("object-cover", className)}
       onClick={onClick}
-      onError={(e) => ((e.currentTarget as HTMLImageElement).src = fallback)}
+      onError={() => setErrored(true)}
     />
   );
 }
