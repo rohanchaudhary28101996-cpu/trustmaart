@@ -2,7 +2,7 @@ import { createFileRoute, useNavigate } from "@tanstack/react-router";
 import { useQuery } from "@tanstack/react-query";
 import { useState, useEffect } from "react";
 import { toast } from "sonner";
-import { Sparkles, Upload, X, Loader2, ImagePlus, Camera, Loader } from "lucide-react";
+import { Sparkles, Upload, X, Loader2, ImagePlus, Camera, Loader, MapPin, CircleCheck } from "lucide-react";
 import { AppShell } from "@/components/layout/AppShell";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
@@ -69,8 +69,30 @@ function SellPage() {
   const [city, setCity] = useState("");
   const [state, setState] = useState("");
   const [pincodeLookupLoading, setPincodeLookupLoading] = useState(false);
+  const [coords, setCoords] = useState<{ lat: number; lng: number } | null>(null);
+  const [locating, setLocating] = useState(false);
   const [images, setImages] = useState<string[]>([]);
   const [uploading, setUploading] = useState(false);
+
+  function useMyLocation() {
+    if (!navigator.geolocation) {
+      toast.error("Geolocation is not supported on this device");
+      return;
+    }
+    setLocating(true);
+    navigator.geolocation.getCurrentPosition(
+      (pos) => {
+        setCoords({ lat: pos.coords.latitude, lng: pos.coords.longitude });
+        toast.success("Location captured — buyers nearby will find this listing more easily");
+        setLocating(false);
+      },
+      (err) => {
+        toast.error(err.message || "Could not get your location");
+        setLocating(false);
+      },
+      { enableHighAccuracy: true, timeout: 10_000 },
+    );
+  }
 
   useEffect(() => {
     if (!/^\d{6}$/.test(pincode)) return;
@@ -256,6 +278,8 @@ function SellPage() {
           pincode,
           city: city.trim(),
           state: state.trim(),
+          lat: coords?.lat ?? null,
+          lng: coords?.lng ?? null,
           images,
         },
       });
@@ -457,6 +481,20 @@ function SellPage() {
             </div>
           </div>
           <p className="text-xs text-muted-foreground">Enter your pincode and we'll fill in city &amp; state automatically — you can still edit them.</p>
+
+          <div className="flex items-center gap-3 rounded-xl border bg-muted/40 p-3">
+            <Button type="button" variant="outline" size="sm" onClick={useMyLocation} disabled={locating}>
+              {locating ? <Loader2 className="mr-2 h-4 w-4 animate-spin" /> : <MapPin className="mr-2 h-4 w-4" />}
+              {locating ? "Locating…" : "Use my current location"}
+            </Button>
+            {coords ? (
+              <span className="flex items-center gap-1 text-xs text-emerald-600">
+                <CircleCheck className="h-3.5 w-3.5" /> Location captured — shown more accurately to nearby buyers
+              </span>
+            ) : (
+              <span className="text-xs text-muted-foreground">Optional — helps buyers near you find this listing first</span>
+            )}
+          </div>
 
           <div className="flex justify-end gap-2 pt-2">
             <Button type="button" variant="ghost" onClick={() => navigate({ to: "/" })}>Cancel</Button>

@@ -2,6 +2,16 @@ import { createServerFn } from "@tanstack/react-start";
 import { requireSupabaseAuth } from "@/integrations/supabase/auth-middleware";
 import { z } from "zod";
 
+function haversineKm(lat1: number, lng1: number, lat2: number, lng2: number): number {
+  const R = 6371;
+  const dLat = ((lat2 - lat1) * Math.PI) / 180;
+  const dLng = ((lng2 - lng1) * Math.PI) / 180;
+  const a =
+    Math.sin(dLat / 2) ** 2 +
+    Math.cos((lat1 * Math.PI) / 180) * Math.cos((lat2 * Math.PI) / 180) * Math.sin(dLng / 2) ** 2;
+  return R * 2 * Math.atan2(Math.sqrt(a), Math.sqrt(1 - a));
+}
+
 const FiltersSchema = z.object({
   type: z.enum(["product", "service"]).optional(),
   q: z.string().max(200).optional(),
@@ -104,28 +114,99 @@ export const getCategories = createServerFn({ method: "GET" }).handler(async () 
   return data ?? [];
 });
 
+type HomeListingRow = {
+  id: string;
+  title: string;
+  price: number | null;
+  is_negotiable: boolean;
+  city: string | null;
+  cover_image: string | null;
+  created_at: string;
+  type: "product" | "service";
+  is_featured: boolean;
+  condition: "new" | "like_new" | "good" | "fair" | "used" | null;
+  status: "active" | "sold" | "removed" | "draft";
+  pincode: string | null;
+  lat: number | null;
+  lng: number | null;
+  distance_km?: number;
+};
+
 export const getHomeData = createServerFn({ method: "GET" })
   .inputValidator((data: unknown) => {
     const d = (data ?? {}) as Record<string, unknown>;
-    return { city: typeof d.city === "string" ? d.city : "" };
+    return {
+      city: typeof d.city === "string" ? d.city : "",
+      lat: typeof d.lat === "number" ? d.lat : null,
+      lng: typeof d.lng === "number" ? d.lng : null,
+      pincode: typeof d.pincode === "string" ? d.pincode : "",
+    };
   })
   .handler(async ({ data }) => {
     const { supabaseAdmin } = await import("@/integrations/supabase/client.server");
-    const select = "id,title,price,is_negotiable,city,cover_image,created_at,type,is_featured,condition,status";
+    const select = "id,title,price,is_negotiable,city,cover_image,created_at,type,is_featured,condition,status,pincode,lat,lng";
     const base = () => supabaseAdmin.from("listings").select(select).eq("status", "active").eq("moderation_status", "live");
-    const [{ data: featured }, { data: recent }, { data: nearby }, { data: services }, { data: cats }] = await Promise.all([
+
+    // Tiered "nearby" matching: precise GPS distance first, then pincode-area
+    // prefix match, then a plain city-name fallback for sellers/buyers who
+    // never share their exact location.
+    let nearby: HomeListingRow[] = [];
+    let nearbyMode: "gps" | "pincode" | "city" | "none" = "none";
+
+    if (data.lat !== null && data.lng !== null) {
+      const { data: withCoords } = await base()
+        .eq("type", "product")
+        .not("lat", "is", null)
+        .not("lng", "is", null)
+        .limit(300);
+      const withDistance = (withCoords ?? [])
+        .map((l) => ({
+          ...l,
+          distance_km: haversineKm(data.lat as number, data.lng as number, l.lat as number, l.lng as number),
+        }))
+        .filter((l) => l.distance_km <= 50)
+        .sort((a, b) => a.distance_km - b.distance_km)
+        .slice(0, 8);
+      if (withDistance.length) {
+        nearby = withDistance;
+        nearbyMode = "gps";
+      }
+    }
+    if (!nearby.length && data.pincode) {
+      const prefix = data.pincode.slice(0, 3);
+      const { data: byPincode } = await base()
+        .eq("type", "product")
+        .like("pincode", `${prefix}%`)
+        .order("created_at", { ascending: false })
+        .limit(8);
+      if (byPincode?.length) {
+        nearby = byPincode;
+        nearbyMode = "pincode";
+      }
+    }
+    if (!nearby.length && data.city) {
+      const { data: byCity } = await base()
+        .eq("type", "product")
+        .ilike("city", `%${data.city}%`)
+        .order("created_at", { ascending: false })
+        .limit(8);
+      if (byCity?.length) {
+        nearby = byCity;
+        nearbyMode = "city";
+      }
+    }
+
+    const [{ data: featured }, { data: recent }, { data: services }, { data: cats }] = await Promise.all([
       base().eq("is_featured", true).limit(8),
       base().eq("type", "product").order("created_at", { ascending: false }).limit(12),
-      data.city
-        ? base().eq("type", "product").ilike("city", `%${data.city}%`).order("created_at", { ascending: false }).limit(8)
-        : Promise.resolve({ data: [] }),
       base().eq("type", "service").order("created_at", { ascending: false }).limit(8),
       supabaseAdmin.from("categories").select("id,slug,name_en,name_hi,icon,type").order("position").limit(20),
     ]);
     return {
       featured: featured ?? [],
       recent: recent ?? [],
-      nearby: nearby ?? [],
+      nearby,
+      nearbyMode,
       services: services ?? [],
       categories: cats ?? [],
       city: data.city,
@@ -144,6 +225,8 @@ const CreateListingSchema = z.object({
   pincode: z.string().regex(/^\d{6}$/, "Pincode must be 6 digits"),
   city: z.string().min(1, "City is required").max(120),
   state: z.string().min(1, "State is required").max(120),
+  lat: z.number().min(-90).max(90).nullable().optional(),
+  lng: z.number().min(-180).max(180).nullable().optional(),
   tags: z.array(z.string().max(40)).max(20).optional(),
   images: z.array(z.string().min(1).max(500)).min(1, "At least 1 photo is required").max(10),
   service_experience: z.number().min(0).max(80).nullable().optional(),
@@ -172,6 +255,8 @@ export const createListing = createServerFn({ method: "POST" })
         pincode: data.pincode,
         city: data.city.trim(),
         state: data.state.trim(),
+        lat: data.lat ?? null,
+        lng: data.lng ?? null,
         tags: data.tags ?? [],
         cover_image: data.images[0] ?? null,
         status: "active",

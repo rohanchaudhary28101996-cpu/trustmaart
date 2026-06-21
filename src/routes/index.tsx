@@ -9,11 +9,13 @@ import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { getHomeData } from "@/lib/listings.functions";
 import { useI18n } from "@/lib/i18n";
-import { getStoredCity } from "@/lib/city";
+import { getStoredCity, getStoredLocation } from "@/lib/city";
 
-const homeQuery = (city = "") => queryOptions({
-  queryKey: ["home", city],
-  queryFn: () => getHomeData({ data: { city } }),
+type LocationParams = { city?: string; lat?: number | null; lng?: number | null; pincode?: string };
+
+const homeQuery = (loc: LocationParams = {}) => queryOptions({
+  queryKey: ["home", loc.city ?? "", loc.lat ?? null, loc.lng ?? null, loc.pincode ?? ""],
+  queryFn: () => getHomeData({ data: loc }),
   staleTime: 30_000,
 });
 
@@ -32,13 +34,23 @@ export const Route = createFileRoute("/")({
 
 function HomePage() {
   const [city, setCity] = useState("");
-  useEffect(() => { setCity(getStoredCity()); }, []);
+  const [loc, setLoc] = useState<LocationParams>({});
+  useEffect(() => {
+    const storedCity = getStoredCity();
+    const storedLoc = getStoredLocation();
+    setCity(storedCity);
+    setLoc({ city: storedCity, lat: storedLoc.lat, lng: storedLoc.lng, pincode: storedLoc.pincode });
+  }, []);
+  const hasLocationSignal = !!(loc.city || loc.lat !== undefined && loc.lat !== null || loc.pincode);
   const { data } = useSuspenseQuery(homeQuery());
-  const { data: localData } = useQuery({ ...homeQuery(city), enabled: !!city });
+  const { data: localData } = useQuery({ ...homeQuery(loc), enabled: hasLocationSignal });
   const { t } = useI18n();
   const navigate = useNavigate();
   const [q, setQ] = useState("");
-  const nearby = city ? (localData?.nearby ?? []) : [];
+  const nearby = hasLocationSignal ? (localData?.nearby ?? []) : [];
+  const nearbyMode = localData?.nearbyMode ?? "none";
+  const nearbyHeading =
+    nearbyMode === "gps" ? "Listings near you" : nearbyMode === "pincode" ? "Listings in your area" : `${city} listings`;
 
   return (
     <AppShell>
@@ -118,11 +130,13 @@ function HomePage() {
       {nearby.length > 0 && (
         <section className="mx-auto max-w-7xl px-4 py-6">
           <SectionHeader
-            title={<span className="flex items-center gap-2"><MapPin className="h-5 w-5 text-primary" />{city} listings</span>}
-            link={{ label: "See all", to: `/browse?city=${encodeURIComponent(city)}` }}
+            title={<span className="flex items-center gap-2"><MapPin className="h-5 w-5 text-primary" />{nearbyHeading}</span>}
+            link={city ? { label: "See all", to: `/browse?city=${encodeURIComponent(city)}` } : undefined}
           />
           <div className="mt-5 grid grid-cols-2 gap-4 sm:grid-cols-3 lg:grid-cols-4">
-            {nearby.map((l) => <ListingCard key={l.id} l={l} />)}
+            {nearby.map((l) => (
+              <ListingCard key={l.id as string} l={l as never} distanceKm={(l as { distance_km?: number }).distance_km} />
+            ))}
           </div>
         </section>
       )}

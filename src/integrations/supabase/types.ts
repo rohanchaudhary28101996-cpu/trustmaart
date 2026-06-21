@@ -192,6 +192,8 @@ export type Database = {
           id: string
           is_featured: boolean
           is_negotiable: boolean
+          lat: number | null
+          lng: number | null
           moderation_status: Database["public"]["Enums"]["listing_moderation_status"]
           owner_id: string
           pincode: string | null
@@ -220,6 +222,8 @@ export type Database = {
           id?: string
           is_featured?: boolean
           is_negotiable?: boolean
+          lat?: number | null
+          lng?: number | null
           moderation_status?: Database["public"]["Enums"]["listing_moderation_status"]
           owner_id: string
           pincode?: string | null
@@ -248,6 +252,8 @@ export type Database = {
           id?: string
           is_featured?: boolean
           is_negotiable?: boolean
+          lat?: number | null
+          lng?: number | null
           moderation_status?: Database["public"]["Enums"]["listing_moderation_status"]
           owner_id?: string
           pincode?: string | null

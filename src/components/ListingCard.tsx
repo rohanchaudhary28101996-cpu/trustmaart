@@ -33,10 +33,12 @@ export function ListingCard({
   l,
   onToggleSave,
   saved,
+  distanceKm,
 }: {
   l: ListingCardData;
   onToggleSave?: () => void;
   saved?: boolean;
+  distanceKm?: number;
 }) {
   const isSold = l.status === "sold";
 
@@ -99,7 +101,8 @@ export function ListingCard({
         <h3 className="mt-1 line-clamp-2 text-sm font-medium text-foreground/90">{l.title}</h3>
         <div className="mt-2 flex items-center justify-between text-xs text-muted-foreground">
           <span className="flex items-center gap-1">
-            <MapPin className="h-3 w-3" /> {l.city ?? "India"}
+            <MapPin className="h-3 w-3" />
+            {distanceKm !== undefined ? `${distanceKm.toFixed(1)} km away` : l.city ?? "India"}
           </span>
           <span>{timeAgo(l.created_at)}</span>
         </div>
