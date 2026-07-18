@@ -163,7 +163,7 @@ export function Header() {
       )}
       <div className="mx-auto flex h-16 max-w-7xl items-center gap-3 px-4">
         <Link to="/" className="flex shrink-0 items-center">
-          <img src="/logo.jpeg" alt="TrustMaart" className="h-12 w-auto object-contain" />
+          <img src="/logo.png" alt="TrustMaart" className="h-12 w-auto object-contain" />
         </Link>
 
         <form onSubmit={onSearch} className="hidden flex-1 md:flex">
