@@ -162,11 +162,8 @@ export function Header() {
         </div>
       )}
       <div className="mx-auto flex h-16 max-w-7xl items-center gap-3 px-4">
-        <Link to="/" className="flex shrink-0 items-center gap-2">
-          <img src="/logo.jpeg" alt="TrustMaart" className="h-9 w-9 rounded-xl object-cover shadow-card" />
-          <span className="hidden text-lg font-extrabold tracking-tight sm:inline">
-            Trust<span className="text-primary">Maart</span>
-          </span>
+        <Link to="/" className="flex shrink-0 items-center">
+          <img src="/logo.jpeg" alt="TrustMaart" className="h-12 w-auto object-contain" />
         </Link>
 
         <form onSubmit={onSearch} className="hidden flex-1 md:flex">
