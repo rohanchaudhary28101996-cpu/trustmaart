@@ -60,6 +60,7 @@ export function Header() {
     setLocating(true);
     try {
       await useMyLocation();
+      setCity("");
       toast.success("Showing listings near you");
       setCityOpen(false);
     } catch (e) {

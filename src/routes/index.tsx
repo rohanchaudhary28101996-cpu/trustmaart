@@ -39,7 +39,8 @@ function HomePage() {
     const storedCity = getStoredCity();
     const storedLoc = getStoredLocation();
     setCity(storedCity);
-    setLoc({ city: storedCity, lat: storedLoc.lat, lng: storedLoc.lng, pincode: storedLoc.pincode });
+    const hasGps = storedLoc.lat !== null && storedLoc.lng !== null;
+    setLoc({ city: hasGps ? "" : storedCity, lat: storedLoc.lat, lng: storedLoc.lng, pincode: storedLoc.pincode });
   }, []);
   const hasLocationSignal = !!(loc.city || loc.lat !== undefined && loc.lat !== null || loc.pincode);
   const { data } = useSuspenseQuery(homeQuery());
