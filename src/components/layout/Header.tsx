@@ -61,8 +61,8 @@ export function Header() {
     try {
       await useMyLocation();
       setCity("");
-      toast.success("Showing listings near you");
       setCityOpen(false);
+      router.navigate({ to: "/", replace: true });
     } catch (e) {
       toast.error((e as Error).message);
     } finally {
@@ -114,7 +114,7 @@ export function Header() {
                 type="button"
                 variant="outline"
                 disabled={pincodeInput.length !== 6}
-                onClick={() => { setPincode(pincodeInput); toast.success("Showing listings near pincode " + pincodeInput); setCityOpen(false); }}
+                onClick={() => { setPincode(pincodeInput); setCityOpen(false); router.navigate({ to: "/", replace: true }); }}
               >
                 Apply
               </Button>
@@ -151,7 +151,7 @@ export function Header() {
               {filteredCities.map((c) => (
                 <button
                   key={c}
-                  onClick={() => { setCity(c); setCityOpen(false); setCityInput(""); }}
+                  onClick={() => { setCity(c); clearLocation(); setCityOpen(false); setCityInput(""); router.navigate({ to: "/", replace: true }); }}
                   className={`rounded-xl border px-2 py-2 text-sm text-left transition-colors hover:bg-primary/10 ${city === c ? "border-primary bg-primary/10 font-medium text-primary" : ""}`}
                 >
                   {c}
