@@ -163,9 +163,7 @@ export function Header() {
       )}
       <div className="mx-auto flex h-16 max-w-7xl items-center gap-3 px-4">
         <Link to="/" className="flex shrink-0 items-center gap-2">
-          <div className="grid h-9 w-9 place-items-center rounded-xl gradient-primary text-primary-foreground font-bold shadow-card">
-            T
-          </div>
+          <img src="/logo.jpeg" alt="TrustMaart" className="h-9 w-9 rounded-xl object-cover shadow-card" />
           <span className="hidden text-lg font-extrabold tracking-tight sm:inline">
             Trust<span className="text-primary">Maart</span>
           </span>
