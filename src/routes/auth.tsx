@@ -8,8 +8,7 @@ import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import { PasswordInput } from "@/components/PasswordInput";
 import { supabase } from "@/integrations/supabase/client";
 import { toast } from "sonner";
-import { Loader2, Mail } from "lucide-react";
-
+import { Loader2, Mail, Phone, ArrowLeft } from "lucide-react";
 
 const search = z.object({ redirect: z.string().optional() });
 
@@ -28,12 +27,28 @@ function AuthPage() {
   const { redirect } = useSearch({ from: "/auth" });
   const navigate = useNavigate();
   const [tab, setTab] = useState<"signin" | "signup">("signin");
+  const [method, setMethod] = useState<"email" | "phone">("email");
+
+  // Email fields
   const [email, setEmail] = useState("");
   const [password, setPassword] = useState("");
   const [name, setName] = useState("");
+
+  // Phone fields
+  const [phone, setPhone] = useState("");
+  const [otp, setOtp] = useState("");
+  const [otpSent, setOtpSent] = useState(false);
+
   const [loading, setLoading] = useState(false);
 
   const goNext = () => navigate({ to: redirect && redirect.startsWith("/") ? redirect : "/" });
+
+  const formatPhone = (raw: string) => {
+    const digits = raw.replace(/\D/g, "");
+    if (digits.startsWith("91") && digits.length > 10) return `+${digits}`;
+    if (digits.length === 10) return `+91${digits}`;
+    return `+${digits}`;
+  };
 
   async function onSignIn(e: React.FormEvent) {
     e.preventDefault();
@@ -62,6 +77,30 @@ function AuthPage() {
     goNext();
   }
 
+  async function onSendOtp(e: React.FormEvent) {
+    e.preventDefault();
+    if (!phone) return toast.error("Enter your phone number");
+    setLoading(true);
+    const formatted = formatPhone(phone);
+    const { error } = await supabase.auth.signInWithOtp({ phone: formatted });
+    setLoading(false);
+    if (error) return toast.error(error.message);
+    setOtpSent(true);
+    toast.success(`OTP sent to ${formatted}`);
+  }
+
+  async function onVerifyOtp(e: React.FormEvent) {
+    e.preventDefault();
+    if (!otp) return toast.error("Enter the OTP");
+    setLoading(true);
+    const formatted = formatPhone(phone);
+    const { error } = await supabase.auth.verifyOtp({ phone: formatted, token: otp, type: "sms" });
+    setLoading(false);
+    if (error) return toast.error(error.message);
+    toast.success("Welcome to TrustMaart!");
+    goNext();
+  }
+
   async function onGoogle() {
     setLoading(true);
     try {
@@ -75,7 +114,6 @@ function AuthPage() {
         toast.error(error.message ?? "Google sign-in failed");
         setLoading(false);
       }
-      // On success, Supabase redirects the browser to Google — no further code runs here.
     } catch (e) {
       toast.error((e as Error).message ?? "Google sign-in failed");
       setLoading(false);
@@ -95,72 +133,107 @@ function AuthPage() {
     <div className="min-h-screen gradient-hero">
       <div className="mx-auto flex min-h-screen max-w-md flex-col justify-center px-4 py-10">
         <Link to="/" className="mb-8 flex items-center justify-center gap-2">
-          <div className="grid h-10 w-10 place-items-center rounded-xl gradient-primary text-primary-foreground font-bold shadow-card">T</div>
-          <span className="text-xl font-extrabold">Trust<span className="text-primary">Maart</span></span>
+          <img src="/logo.png" alt="TrustMaart" className="h-10 w-auto object-contain" />
         </Link>
         <div className="rounded-3xl border bg-card p-6 shadow-elevated">
-          <Tabs value={tab} onValueChange={(v) => setTab(v as "signin" | "signup")}>
+          <Tabs value={tab} onValueChange={(v) => { setTab(v as "signin" | "signup"); setMethod("email"); setOtpSent(false); setOtp(""); }}>
             <TabsList className="grid w-full grid-cols-2">
               <TabsTrigger value="signin">Sign in</TabsTrigger>
               <TabsTrigger value="signup">Create account</TabsTrigger>
             </TabsList>
 
-            <Button
-              type="button"
-              variant="outline"
-              className="mt-5 w-full"
-              onClick={onGoogle}
-              disabled={loading}
-            >
+            {/* Google */}
+            <Button type="button" variant="outline" className="mt-5 w-full" onClick={onGoogle} disabled={loading}>
               <GoogleIcon />
               Continue with Google
             </Button>
 
             <div className="my-4 flex items-center gap-2 text-xs text-muted-foreground">
-              <div className="h-px flex-1 bg-border" />
-              or
-              <div className="h-px flex-1 bg-border" />
+              <div className="h-px flex-1 bg-border" /> or <div className="h-px flex-1 bg-border" />
             </div>
 
+            {/* Method toggle */}
+            <div className="mb-4 grid grid-cols-2 gap-2">
+              <button
+                type="button"
+                onClick={() => { setMethod("email"); setOtpSent(false); setOtp(""); }}
+                className={`flex items-center justify-center gap-2 rounded-xl border px-3 py-2 text-sm font-medium transition-colors ${method === "email" ? "border-primary bg-primary/10 text-primary" : "border-border text-muted-foreground hover:bg-accent"}`}
+              >
+                <Mail className="h-4 w-4" /> Email
+              </button>
+              <button
+                type="button"
+                onClick={() => { setMethod("phone"); setOtpSent(false); setOtp(""); }}
+                className={`flex items-center justify-center gap-2 rounded-xl border px-3 py-2 text-sm font-medium transition-colors ${method === "phone" ? "border-primary bg-primary/10 text-primary" : "border-border text-muted-foreground hover:bg-accent"}`}
+              >
+                <Phone className="h-4 w-4" /> Phone OTP
+              </button>
+            </div>
+
+            {/* SIGN IN */}
             <TabsContent value="signin">
-              <form onSubmit={onSignIn} className="space-y-3">
-                <div>
-                  <Label htmlFor="email">Email</Label>
-                  <Input id="email" type="email" required value={email} onChange={(e) => setEmail(e.target.value)} />
-                </div>
-                <div>
-                  <div className="flex items-baseline justify-between">
-                    <Label htmlFor="password">Password</Label>
-                    <button type="button" onClick={onForgot} className="text-xs text-primary hover:underline">
-                      Forgot?
-                    </button>
+              {method === "email" ? (
+                <form onSubmit={onSignIn} className="space-y-3">
+                  <div>
+                    <Label htmlFor="email">Email</Label>
+                    <Input id="email" type="email" required value={email} onChange={(e) => setEmail(e.target.value)} />
                   </div>
-                  <PasswordInput id="password" required value={password} onChange={(e) => setPassword(e.target.value)} />
-                </div>
-                <Button type="submit" className="w-full" disabled={loading}>
-                  {loading ? <Loader2 className="h-4 w-4 animate-spin" /> : <><Mail className="mr-2 h-4 w-4" /> Sign in</>}
-                </Button>
-              </form>
+                  <div>
+                    <div className="flex items-baseline justify-between">
+                      <Label htmlFor="password">Password</Label>
+                      <button type="button" onClick={onForgot} className="text-xs text-primary hover:underline">Forgot?</button>
+                    </div>
+                    <PasswordInput id="password" required value={password} onChange={(e) => setPassword(e.target.value)} />
+                  </div>
+                  <Button type="submit" className="w-full" disabled={loading}>
+                    {loading ? <Loader2 className="h-4 w-4 animate-spin" /> : <><Mail className="mr-2 h-4 w-4" /> Sign in</>}
+                  </Button>
+                </form>
+              ) : (
+                <PhoneOtpForm
+                  phone={phone} setPhone={setPhone}
+                  otp={otp} setOtp={setOtp}
+                  otpSent={otpSent} setOtpSent={setOtpSent}
+                  loading={loading}
+                  onSendOtp={onSendOtp}
+                  onVerifyOtp={onVerifyOtp}
+                />
+              )}
             </TabsContent>
 
+            {/* SIGN UP */}
             <TabsContent value="signup">
-              <form onSubmit={onSignUp} className="space-y-3">
-                <div>
-                  <Label htmlFor="name">Full name</Label>
-                  <Input id="name" required value={name} onChange={(e) => setName(e.target.value)} />
+              {method === "email" ? (
+                <form onSubmit={onSignUp} className="space-y-3">
+                  <div>
+                    <Label htmlFor="name">Full name</Label>
+                    <Input id="name" required value={name} onChange={(e) => setName(e.target.value)} />
+                  </div>
+                  <div>
+                    <Label htmlFor="email-s">Email</Label>
+                    <Input id="email-s" type="email" required value={email} onChange={(e) => setEmail(e.target.value)} />
+                  </div>
+                  <div>
+                    <Label htmlFor="password-s">Password</Label>
+                    <PasswordInput id="password-s" required minLength={6} value={password} onChange={(e) => setPassword(e.target.value)} />
+                  </div>
+                  <Button type="submit" className="w-full" disabled={loading}>
+                    {loading ? <Loader2 className="h-4 w-4 animate-spin" /> : "Create account"}
+                  </Button>
+                </form>
+              ) : (
+                <div className="space-y-2">
+                  <p className="text-xs text-muted-foreground text-center">No separate signup needed — enter your phone number and we'll create your account automatically.</p>
+                  <PhoneOtpForm
+                    phone={phone} setPhone={setPhone}
+                    otp={otp} setOtp={setOtp}
+                    otpSent={otpSent} setOtpSent={setOtpSent}
+                    loading={loading}
+                    onSendOtp={onSendOtp}
+                    onVerifyOtp={onVerifyOtp}
+                  />
                 </div>
-                <div>
-                  <Label htmlFor="email-s">Email</Label>
-                  <Input id="email-s" type="email" required value={email} onChange={(e) => setEmail(e.target.value)} />
-                </div>
-                <div>
-                  <Label htmlFor="password-s">Password</Label>
-                  <PasswordInput id="password-s" required minLength={6} value={password} onChange={(e) => setPassword(e.target.value)} />
-                </div>
-                <Button type="submit" className="w-full" disabled={loading}>
-                  {loading ? <Loader2 className="h-4 w-4 animate-spin" /> : "Create account"}
-                </Button>
-              </form>
+              )}
             </TabsContent>
           </Tabs>
         </div>
@@ -169,6 +242,69 @@ function AuthPage() {
         </p>
       </div>
     </div>
+  );
+}
+
+function PhoneOtpForm({ phone, setPhone, otp, setOtp, otpSent, setOtpSent, loading, onSendOtp, onVerifyOtp }: {
+  phone: string; setPhone: (v: string) => void;
+  otp: string; setOtp: (v: string) => void;
+  otpSent: boolean; setOtpSent: (v: boolean) => void;
+  loading: boolean;
+  onSendOtp: (e: React.FormEvent) => void;
+  onVerifyOtp: (e: React.FormEvent) => void;
+}) {
+  if (!otpSent) {
+    return (
+      <form onSubmit={onSendOtp} className="space-y-3">
+        <div>
+          <Label htmlFor="phone">Phone number</Label>
+          <div className="flex items-center gap-2">
+            <span className="flex h-10 items-center rounded-md border border-input bg-muted px-3 text-sm text-muted-foreground">+91</span>
+            <Input
+              id="phone"
+              type="tel"
+              placeholder="10-digit mobile number"
+              inputMode="numeric"
+              maxLength={10}
+              value={phone}
+              onChange={(e) => setPhone(e.target.value.replace(/\D/g, "").slice(0, 10))}
+              required
+            />
+          </div>
+        </div>
+        <Button type="submit" className="w-full" disabled={loading || phone.length !== 10}>
+          {loading ? <Loader2 className="h-4 w-4 animate-spin" /> : <><Phone className="mr-2 h-4 w-4" /> Send OTP</>}
+        </Button>
+      </form>
+    );
+  }
+
+  return (
+    <form onSubmit={onVerifyOtp} className="space-y-3">
+      <div className="flex items-center gap-2 text-sm text-muted-foreground">
+        <button type="button" onClick={() => { setOtpSent(false); setOtp(""); }} className="hover:text-foreground">
+          <ArrowLeft className="h-4 w-4" />
+        </button>
+        OTP sent to +91{phone}
+      </div>
+      <div>
+        <Label htmlFor="otp">Enter OTP</Label>
+        <Input
+          id="otp"
+          type="text"
+          inputMode="numeric"
+          placeholder="6-digit OTP"
+          maxLength={6}
+          value={otp}
+          onChange={(e) => setOtp(e.target.value.replace(/\D/g, "").slice(0, 6))}
+          required
+          autoFocus
+        />
+      </div>
+      <Button type="submit" className="w-full" disabled={loading || otp.length !== 6}>
+        {loading ? <Loader2 className="h-4 w-4 animate-spin" /> : "Verify OTP & Sign in"}
+      </Button>
+    </form>
   );
 }
 
