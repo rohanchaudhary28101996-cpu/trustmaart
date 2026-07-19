@@ -13,6 +13,8 @@ import { AuthProvider } from "@/lib/auth";
 import { ThemeProvider } from "@/lib/theme";
 import { I18nProvider } from "@/lib/i18n";
 import { supabase } from "@/integrations/supabase/client";
+import { Capacitor } from "@capacitor/core";
+import { BottomNav } from "@/components/layout/BottomNav";
 
 import appCss from "../styles.css?url";
 import { reportLovableError } from "../lib/lovable-error-reporting";
@@ -131,12 +133,33 @@ function RootComponent() {
     return () => sub.subscription.unsubscribe();
   }, [router, queryClient]);
 
+  useEffect(() => {
+    if (!Capacitor.isNativePlatform()) return;
+    (async () => {
+      try {
+        const { StatusBar, Style } = await import("@capacitor/status-bar");
+        await StatusBar.setStyle({ style: Style.Light });
+        await StatusBar.setBackgroundColor({ color: "#7C3AED" });
+        await StatusBar.show();
+      } catch {}
+      try {
+        const { SplashScreen } = await import("@capacitor/splash-screen");
+        await SplashScreen.hide({ fadeOutDuration: 300 });
+      } catch {}
+    })();
+  }, []);
+
+  const isNative = Capacitor.isNativePlatform();
+
   return (
     <QueryClientProvider client={queryClient}>
       <ThemeProvider>
         <I18nProvider>
           <AuthProvider>
-            <Outlet />
+            <div className={isNative ? "pb-16" : ""}>
+              <Outlet />
+            </div>
+            <BottomNav />
             <Toaster position="top-right" richColors />
           </AuthProvider>
         </I18nProvider>

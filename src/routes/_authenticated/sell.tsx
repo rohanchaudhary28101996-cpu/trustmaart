@@ -1,6 +1,8 @@
 import { createFileRoute, useNavigate } from "@tanstack/react-router";
 import { useQuery } from "@tanstack/react-query";
 import { useState, useEffect } from "react";
+import { Capacitor } from "@capacitor/core";
+import { pickPhotos } from "@/lib/photo-picker";
 import { toast } from "sonner";
 import { Sparkles, Upload, X, Loader2, ImagePlus, Camera, Loader, MapPin, CircleCheck } from "lucide-react";
 import { AppShell } from "@/components/layout/AppShell";
@@ -156,6 +158,48 @@ function SellPage() {
       }
     }
     setAiPhotos((prev) => [...prev, ...added]);
+  }
+
+  async function onAiPhotosNative() {
+    const remaining = MAX_AI_PHOTOS - aiPhotos.length;
+    if (remaining <= 0) { toast.error(`Up to ${MAX_AI_PHOTOS} reference photos for AI`); return; }
+    const picked = await pickPhotos(true);
+    if (!picked.length) return;
+    const added: { dataUrl: string; file: File }[] = [];
+    for (const { blob, name } of picked.slice(0, remaining)) {
+      const f = new File([blob], name, { type: blob.type });
+      try {
+        const dataUrl = await fileToResizedDataUrl(f);
+        added.push({ dataUrl, file: f });
+      } catch {}
+    }
+    setAiPhotos((prev) => [...prev, ...added]);
+  }
+
+  async function onUploadNative() {
+    const remaining = MAX_IMAGES - images.length;
+    if (remaining <= 0) { toast.error(`Maximum ${MAX_IMAGES} images allowed`); return; }
+    const picked = await pickPhotos(true);
+    if (!picked.length) return;
+    setUploading(true);
+    try {
+      const { data: u } = await supabase.auth.getUser();
+      const uid = u.user?.id;
+      if (!uid) throw new Error("Not signed in");
+      const uploaded: string[] = [];
+      for (const { blob, name } of picked.slice(0, remaining)) {
+        const ext = name.split(".").pop() || "jpg";
+        const path = `${uid}/${Date.now()}-${Math.random().toString(36).slice(2, 8)}.${ext}`;
+        const { error } = await supabase.storage.from("listing-images").upload(path, blob, {
+          upsert: false, contentType: blob.type,
+        });
+        if (error) { toast.error(error.message); continue; }
+        uploaded.push(path);
+      }
+      setImages((prev) => [...prev, ...uploaded]);
+    } finally {
+      setUploading(false);
+    }
   }
 
   function removeAiPhoto(idx: number) {
@@ -323,17 +367,28 @@ function SellPage() {
               </div>
             ))}
             {aiPhotos.length < MAX_AI_PHOTOS && (
-              <label className="flex aspect-square cursor-pointer flex-col items-center justify-center gap-1 rounded-lg border border-dashed text-[10px] text-muted-foreground hover:bg-secondary/50">
-                <Camera className="h-5 w-5" />
-                <span>Add photo</span>
-                <input
-                  type="file"
-                  accept="image/jpeg,image/png,image/webp"
-                  multiple
-                  className="hidden"
-                  onChange={(e) => onAiPhotos(e.target.files)}
-                />
-              </label>
+              Capacitor.isNativePlatform() ? (
+                <button
+                  type="button"
+                  onClick={onAiPhotosNative}
+                  className="flex aspect-square cursor-pointer flex-col items-center justify-center gap-1 rounded-lg border border-dashed text-[10px] text-muted-foreground hover:bg-secondary/50"
+                >
+                  <Camera className="h-5 w-5" />
+                  <span>Add photo</span>
+                </button>
+              ) : (
+                <label className="flex aspect-square cursor-pointer flex-col items-center justify-center gap-1 rounded-lg border border-dashed text-[10px] text-muted-foreground hover:bg-secondary/50">
+                  <Camera className="h-5 w-5" />
+                  <span>Add photo</span>
+                  <input
+                    type="file"
+                    accept="image/jpeg,image/png,image/webp"
+                    multiple
+                    className="hidden"
+                    onChange={(e) => onAiPhotos(e.target.files)}
+                  />
+                </label>
+              )
             )}
           </div>
 
@@ -382,17 +437,29 @@ function SellPage() {
                 </div>
               ))}
               {images.length < MAX_IMAGES && (
-                <label className="flex aspect-square cursor-pointer flex-col items-center justify-center gap-1 rounded-lg border border-dashed text-xs text-muted-foreground hover:bg-secondary/50">
-                  {uploading ? <Loader2 className="h-5 w-5 animate-spin" /> : <ImagePlus className="h-5 w-5" />}
-                  <span>{uploading ? "Uploading…" : "Add"}</span>
-                  <input
-                    type="file"
-                    accept="image/jpeg,image/png,image/webp"
-                    multiple
-                    className="hidden"
-                    onChange={(e) => onUpload(e.target.files)}
-                  />
-                </label>
+                Capacitor.isNativePlatform() ? (
+                  <button
+                    type="button"
+                    onClick={onUploadNative}
+                    disabled={uploading}
+                    className="flex aspect-square cursor-pointer flex-col items-center justify-center gap-1 rounded-lg border border-dashed text-xs text-muted-foreground hover:bg-secondary/50"
+                  >
+                    {uploading ? <Loader2 className="h-5 w-5 animate-spin" /> : <ImagePlus className="h-5 w-5" />}
+                    <span>{uploading ? "Uploading…" : "Add"}</span>
+                  </button>
+                ) : (
+                  <label className="flex aspect-square cursor-pointer flex-col items-center justify-center gap-1 rounded-lg border border-dashed text-xs text-muted-foreground hover:bg-secondary/50">
+                    {uploading ? <Loader2 className="h-5 w-5 animate-spin" /> : <ImagePlus className="h-5 w-5" />}
+                    <span>{uploading ? "Uploading…" : "Add"}</span>
+                    <input
+                      type="file"
+                      accept="image/jpeg,image/png,image/webp"
+                      multiple
+                      className="hidden"
+                      onChange={(e) => onUpload(e.target.files)}
+                    />
+                  </label>
+                )
               )}
             </div>
             <p className="mt-2 text-xs text-muted-foreground">Up to 10 photos. First photo is the cover.</p>
